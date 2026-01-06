@@ -43,8 +43,9 @@
 namespace {
     constexpr std::string_view NATIVE_KEYWORD = "Native";
     constexpr std::string_view CALL_PUBLIC_KEYWORD = "Call_Public";
-    constexpr std::string_view FLOAT_WRAPPER = "Float";
-
+    constexpr std::string_view FLOAT_WRAPPER_OPEN = "Float(";
+    constexpr std::string_view FLOAT_WRAPPER_CLOSE = ")";
+    
     constexpr std::array<char, 6> VALID_NUM_CONTEXT = { ',', '(', '=', '[', ':', ' ' };
     
     enum class Parse_State : uint8_t {
@@ -79,20 +80,15 @@ namespace {
 
     inline Keyword_Match Match_Keyword(const std::string& code, size_t pos, std::string_view keyword) noexcept {
         Keyword_Match result;
+        if (pos + keyword.length() > code.length()) return result;
+        if (!Is_Word_Start(code, pos)) return result;
 
-        if (pos + keyword.length() > code.length())
-            return result;
-
-        if (!Is_Word_Start(code, pos))
-            return result;
-
-        if (code.compare(pos, keyword.length(), keyword) == 0) {
+        if (std::string_view(code.c_str() + pos, keyword.length()) == keyword) {
             if (Is_Word_End(code, pos, keyword.length())) {
                 result.matched = true;
                 result.length = keyword.length();
             }
         }
-
         return result;
     }
 
@@ -201,12 +197,12 @@ namespace {
         while (pos > 0 && std::isspace(static_cast<unsigned char>(code[pos])))
             --pos;
 
-        if (pos < FLOAT_WRAPPER.length() - 1)
-            return false;
+        constexpr size_t FLOAT_LEN = 5; 
+        if (pos < FLOAT_LEN - 1) return false;
 
-        size_t float_start = pos - FLOAT_WRAPPER.length() + 1;
+        size_t float_start = pos - FLOAT_LEN + 1;
 
-        if (code.compare(float_start, FLOAT_WRAPPER.length(), FLOAT_WRAPPER) == 0)
+        if (std::string_view(code.c_str() + float_start, FLOAT_LEN) == "Float")
             return float_start == 0 || Is_Identifier_Boundary(code[float_start - 1]);
 
         return false;
@@ -227,7 +223,7 @@ std::string Code_Preprocessor::Transform_Native_Calls(const std::string& code) {
 
     try {
         std::string result;
-        result.reserve(len + (len / 10));
+        result.reserve(len + (len >> 3)); // Heuristic reserve to avoid reallocations
 
         Parse_State state = Parse_State::Normal;
         char quote_char = '\0';

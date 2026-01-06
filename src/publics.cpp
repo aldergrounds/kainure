@@ -207,9 +207,15 @@ void Publics::Call_Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
         
         std::vector<Type_Converter::Conversion_Result> converted_args;
         converted_args.reserve(args_count);
+        
+        std::vector<Type_Converter::Ref_Update_Data> updates;
+        updates.reserve(args_count);
 
-        for (int i = 0; i < args_count; i++)
+        for (int i = 0; i < args_count; i++) {
             converted_args.push_back(Type_Converter::To_Cell(isolate, context, info[i + 1], target_amx));
+            if (converted_args.back().Has_Update())
+                updates.push_back(converted_args.back().update_data);
+        }
 
         cell hea_before = target_amx->hea;
         cell stk_before = target_amx->stk;
@@ -227,14 +233,10 @@ void Publics::Call_Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
         target_amx->hea = hea_before;
         target_amx->stk = stk_before;
 
-        for (auto& conversion : converted_args) {
-            if (conversion.Has_Updater())
-                conversion.updater();
-        }
+        Type_Converter::Apply_Updates(isolate, context, updates);
 
         if (exec_error != static_cast<int>(Amx_Error::None) && exec_error != static_cast<int>(Amx_Error::Sleep)) {
             bool is_expected_ghost_error = (public_index == PLUGIN_EXEC_GHOST_PUBLIC && exec_error == static_cast<int>(Amx_Error::Index));
-
             if (!is_expected_ghost_error)
                 Logger::Log(Log_Level::ERROR_s, "Error executing public '%s': Code '%d'.", public_name.c_str(), exec_error);
         }

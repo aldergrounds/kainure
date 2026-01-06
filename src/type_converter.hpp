@@ -32,7 +32,7 @@
 
 #pragma once
 
-#include <functional>
+#include <vector>
 #include <memory>
 //
 #include "samp-sdk/amx_defs.h"
@@ -42,17 +42,34 @@
 
 class Type_Converter {
     public:
+        enum class Ref_Type : uint8_t {
+            None,
+            Int,
+            Float,
+            Bool,
+            String
+        };
+
+        struct Ref_Update_Data {
+            v8::Local<v8::Object> parent;
+            cell* phys_addr;
+            Ref_Type type;
+            size_t size;
+        };
+
         struct Conversion_Result {
             cell value = 0;
-
             std::unique_ptr<Samp_SDK::Amx_Scoped_Memory> memory;
-            std::function<void()> updater;
+            Ref_Update_Data update_data;
 
-            bool Has_Updater() const {
-                return updater != nullptr;
+            Conversion_Result() : value(0), update_data{ {}, nullptr, Ref_Type::None, 0 } {}
+            
+            bool Has_Update() const {
+                return update_data.type != Ref_Type::None;
             }
         };
 
         static Conversion_Result To_Cell(v8::Isolate* isolate, v8::Local<v8::Context> context, v8::Local<v8::Value> value, AMX* amx);
         static cell To_Return_Code(v8::Isolate* isolate, v8::Local<v8::Context> context, v8::Local<v8::Value> js_value);
+        static void Apply_Updates(v8::Isolate* isolate, v8::Local<v8::Context> context, const std::vector<Ref_Update_Data>& updates);
 };

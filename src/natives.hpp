@@ -45,11 +45,12 @@ struct Native_Binding_Data {
     AMX_NATIVE native_func = nullptr;
     uint32_t native_hash = 0;
     std::string native_name;
+    char return_type = 'i'; // 'i' = int, 'f' = float
 };
 
 class Natives {
     public:
-        static void Generate_Binding(v8::Isolate* isolate, v8::Local<v8::Object> target, const std::string& name, uint32_t hash);
+        static void Generate_Binding(v8::Isolate* isolate, v8::Local<v8::Object> target, const std::string& name, uint32_t hash, char return_type = 'i');
         static void Set_Has_Hooks(bool has_hooks);
         static void Handler(const v8::FunctionCallbackInfo<v8::Value>& info);
         static void Clear_Bindings();

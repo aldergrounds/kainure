@@ -30,6 +30,8 @@
  *                                                                              *
  * ============================================================================ */
 
+#include <unordered_set> 
+//
 #include "samp-sdk/amx_defs.h"
 #include "samp-sdk/interceptor_manager.hpp"
 #include "samp-sdk/public_dispatcher.hpp"
@@ -208,8 +210,22 @@ void Event_Dispatcher::Generate_Native_Bindings() {
 
     v8::Local<v8::Object> native_obj = native_val.As<v8::Object>();
 
-    for (const auto& pair : all_natives)
-        Natives::Generate_Binding(isolate, native_obj, pair.second, pair.first);
+    static const std::unordered_set<std::string> float_return_natives = {
+        "float", "floatabs", "floatsqroot", "floatadd", "floatsub",
+        "floatmul", "floatdiv", "floatsin", "floatcos", "floattan",
+        "floatasin", "floatacos", "floatatan", "floatatan2", "floatlog",
+        "floatfract", "floatpower", "NetStats_PacketLossPercent"
+    };
+
+    for (const auto& pair : all_natives) {
+        char return_type = 'i';
+        
+        if (float_return_natives.find(pair.second) != float_return_natives.end()) {
+            return_type = 'f';
+        }
+
+        Natives::Generate_Binding(isolate, native_obj, pair.second, pair.first, return_type);
+    }
 
     if (try_catch.HasCaught())
         Error_Handler::Log_Exception(isolate, try_catch);
