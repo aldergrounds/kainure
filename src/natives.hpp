@@ -37,7 +37,7 @@
 #include <vector>
 #include <memory>
 //
-#include "samp-sdk/amx_defs.h" 
+#include "sdk/amx_defs.h" 
 //
 #include "node_inclusion.hpp"
 

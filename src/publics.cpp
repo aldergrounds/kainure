@@ -32,11 +32,11 @@
 
 #include <vector>
 //
-#include "samp-sdk/amx_api.hpp"
-#include "samp-sdk/amx_defs.h"
-#include "samp-sdk/amx_manager.hpp"
-#include "samp-sdk/interceptor_manager.hpp"
-#include "samp-sdk/public_dispatcher.hpp"
+#include "sdk/amx_api.hpp"
+#include "sdk/amx_defs.h"
+#include "sdk/amx_manager.hpp"
+#include "sdk/interceptor_manager.hpp"
+#include "sdk/public_dispatcher.hpp"
 //
 #include "publics.hpp"
 #include "event_dispatcher.hpp"
@@ -233,7 +233,7 @@ void Publics::Call_Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
         target_amx->hea = hea_before;
         target_amx->stk = stk_before;
 
-        Type_Converter::Apply_Updates(isolate, context, updates);
+        Type_Converter::Apply_Updates(isolate, context, updates.data(), updates.size());
 
         if (exec_error != static_cast<int>(Amx_Error::None) && exec_error != static_cast<int>(Amx_Error::Sleep)) {
             bool is_expected_ghost_error = (public_index == PLUGIN_EXEC_GHOST_PUBLIC && exec_error == static_cast<int>(Amx_Error::Index));

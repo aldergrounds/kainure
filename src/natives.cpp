@@ -32,10 +32,10 @@
 
 #include <atomic>
 //
-#include "samp-sdk/amx_defs.h"
-#include "samp-sdk/interceptor_manager.hpp"
-#include "samp-sdk/callbacks.hpp"
-#include "samp-sdk/platform.hpp"
+#include "sdk/amx_defs.h"
+#include "sdk/interceptor_manager.hpp"
+#include "sdk/callbacks.hpp"
+#include "sdk/platform.hpp"
 //
 #include "natives.hpp"
 #include "native_hooks.hpp"
@@ -153,20 +153,18 @@ void Natives::Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
     int argc = info.Length();
     AMX* amx_fake = tl_sandbox.Get();
-    
     cell retval = 0;
-    std::vector<Type_Converter::Ref_Update_Data> updates;
-    updates.reserve(argc > 0 ? argc : 0);
 
+    
     if (argc == 0) {
         cell params[1] = { 0 }; 
         retval = data->native_func(amx_fake, params);
     }
     else if (argc <= static_cast<int>(Constants::STACK_ARGS_THRESHOLD)) {
         cell params_stack[Constants::STACK_BUFFER_SIZE] = {};
-        
-        // Stack storage for small N
         Type_Converter::Conversion_Result conversions[Constants::STACK_ARGS_THRESHOLD];
+        Type_Converter::Ref_Update_Data updates_stack[Constants::STACK_ARGS_THRESHOLD];
+        size_t updates_count = 0;
         
         params_stack[0] = argc * sizeof(cell);
         
@@ -174,15 +172,21 @@ void Natives::Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
             conversions[i] = Type_Converter::To_Cell(isolate, context, info[i], amx_fake);
             params_stack[i + 1] = conversions[i].value;
             
-            if (conversions[i].Has_Update())
-                updates.push_back(conversions[i].update_data);
+            if (conversions[i].Has_Update()) {
+                updates_stack[updates_count++] = conversions[i].update_data;
+            }
         }
         
         retval = data->native_func(amx_fake, params_stack);
+        Type_Converter::Apply_Updates(isolate, context, updates_stack, updates_count);
     }
     else {
         std::vector<Type_Converter::Conversion_Result> conversions;
         conversions.reserve(argc);
+        
+        std::vector<Type_Converter::Ref_Update_Data> updates_vector;
+        updates_vector.reserve(argc);
+        
         std::vector<cell> params_vec(argc + 1 + 4, 0);
         params_vec[0] = argc * sizeof(cell);
 
@@ -191,14 +195,14 @@ void Natives::Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
             params_vec[i + 1] = conversions.back().value;
             
             if (conversions.back().Has_Update())
-                updates.push_back(conversions.back().update_data);
+                updates_vector.push_back(conversions.back().update_data);
         }
 
         retval = data->native_func(amx_fake, params_vec.data());
+
+        Type_Converter::Apply_Updates(isolate, context, updates_vector.data(), updates_vector.size());
     }
     
-    Type_Converter::Apply_Updates(isolate, context, updates);
-
     if (data->return_type == 'f') {
         float f_ret = Samp_SDK::amx::AMX_CTOF(retval);
         info.GetReturnValue().Set(v8::Number::New(isolate, f_ret));

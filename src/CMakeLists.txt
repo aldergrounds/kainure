@@ -48,9 +48,9 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}
     SYSTEM PRIVATE
         ${DEPS_DIR}
-        #${DEPS_DIR}/json/single_include
-        #${DEPS_DIR}/json/include
-        #${DEPS_DIR}/samp-sdk
+        ${DEPS_DIR}/json/single_include
+        ${DEPS_DIR}/json/include
+        ${DEPS_DIR}/samp-sdk
         ${NODE_INCLUDES_DIR}/node
         ${NODE_INCLUDES_DIR}/uv
         ${NODE_INCLUDES_DIR}/v8

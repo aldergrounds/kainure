@@ -33,7 +33,7 @@
 #include <cstdarg>
 #include <cstdio>
 //
-#include "samp-sdk/logger.hpp"
+#include "sdk/logger.hpp"
 //
 #include "constants.hpp"
 #include "logger.hpp"

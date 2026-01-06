@@ -35,8 +35,8 @@
 #include <vector>
 #include <memory>
 //
-#include "samp-sdk/amx_defs.h"
-#include "samp-sdk/amx_memory.hpp"
+#include "sdk/amx_defs.h"
+#include "sdk/amx_memory.hpp"
 //
 #include "node_inclusion.hpp"
 
@@ -71,5 +71,5 @@ class Type_Converter {
 
         static Conversion_Result To_Cell(v8::Isolate* isolate, v8::Local<v8::Context> context, v8::Local<v8::Value> value, AMX* amx);
         static cell To_Return_Code(v8::Isolate* isolate, v8::Local<v8::Context> context, v8::Local<v8::Value> js_value);
-        static void Apply_Updates(v8::Isolate* isolate, v8::Local<v8::Context> context, const std::vector<Ref_Update_Data>& updates);
+        static void Apply_Updates(v8::Isolate* isolate, v8::Local<v8::Context> context, const Ref_Update_Data* updates, size_t count);
 };

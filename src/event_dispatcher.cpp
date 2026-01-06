@@ -32,9 +32,9 @@
 
 #include <unordered_set> 
 //
-#include "samp-sdk/amx_defs.h"
-#include "samp-sdk/interceptor_manager.hpp"
-#include "samp-sdk/public_dispatcher.hpp"
+#include "sdk/amx_defs.h"
+#include "sdk/interceptor_manager.hpp"
+#include "sdk/public_dispatcher.hpp"
 //
 #include "event_dispatcher.hpp"
 #include "runtime_manager.hpp"

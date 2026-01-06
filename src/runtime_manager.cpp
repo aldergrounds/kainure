@@ -36,7 +36,7 @@
 #include <algorithm>
 #include <new>
 //
-#include "samp-sdk/logger.hpp"
+#include "sdk/logger.hpp"
 //
 #include "runtime_manager.hpp"
 #include "file_manager.hpp"

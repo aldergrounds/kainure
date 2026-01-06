@@ -37,9 +37,9 @@
 #include <algorithm>
 #include <vector>
 //
-#include "samp-sdk/amx_api.hpp"
-#include "samp-sdk/public_dispatcher.hpp"
-#include "samp-sdk/platform.hpp"
+#include "sdk/amx_api.hpp"
+#include "sdk/public_dispatcher.hpp"
+#include "sdk/platform.hpp"
 //
 #include "type_converter.hpp"
 #include "constants.hpp"
@@ -237,13 +237,15 @@ Type_Converter::Conversion_Result Type_Converter::To_Cell(v8::Isolate* isolate, 
     return result;
 }
 
-void Type_Converter::Apply_Updates(v8::Isolate* isolate, v8::Local<v8::Context> context, const std::vector<Ref_Update_Data>& updates) {
-    if (updates.empty()) return;
+void Type_Converter::Apply_Updates(v8::Isolate* isolate, v8::Local<v8::Context> context, const Ref_Update_Data* updates, size_t count) {
+    if (count == 0 || !updates) return;
 
     string_cache.Ensure_Initialized(isolate);
     v8::Local<v8::String> val_field = string_cache.value_field.Get(isolate);
 
-    for (const auto& data : updates) {
+    for (size_t i = 0; i < count; ++i) {
+        const auto& data = updates[i];
+
         if (data.type == Ref_Type::None) continue;
         
         switch (data.type) {
