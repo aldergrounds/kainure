@@ -1,4 +1,4 @@
-﻿/* ============================================================================ *
+/* ============================================================================ *
  * Kainure - Node.js Framework for SA-MP (San Andreas Multiplayer)              *
  * ================================= About ==================================== *
  *                                                                              *
@@ -35,10 +35,11 @@
 #include <memory>
 #include <cstdint>
 #include <algorithm>
+#include <vector>
 //
-#include "samp-sdk/amx_api.hpp"
-#include "samp-sdk/public_dispatcher.hpp"
-#include "samp-sdk/platform.hpp"
+#include "sdk/amx_api.hpp"
+#include "sdk/public_dispatcher.hpp"
+#include "sdk/platform.hpp"
 //
 #include "type_converter.hpp"
 #include "constants.hpp"
@@ -78,26 +79,7 @@ namespace {
         return has.IsJust() && has.FromJust();
     }
     
-    enum class Ref_Type : uint8_t {
-        Int,
-        Float,
-        Bool
-    };
-    
-    SAMP_SDK_FORCE_INLINE void Update_Int_Ref(v8::Isolate* isolate, v8::Local<v8::Object> parent, v8::Local<v8::Context> ctx, cell* addr) {
-        parent->Set(ctx, string_cache.value_field.Get(isolate), v8::Integer::New(isolate, *addr)).Check();
-    }
-    
-    SAMP_SDK_FORCE_INLINE void Update_Float_Ref(v8::Isolate* isolate, v8::Local<v8::Object> parent, v8::Local<v8::Context> ctx, cell* addr) {
-        float f = Samp_SDK::amx::AMX_CTOF(*addr);
-        parent->Set(ctx, string_cache.value_field.Get(isolate), v8::Number::New(isolate, f)).Check();
-    }
-    
-    SAMP_SDK_FORCE_INLINE void Update_Bool_Ref(v8::Isolate* isolate, v8::Local<v8::Object> parent, v8::Local<v8::Context> ctx, cell* addr) {
-        parent->Set(ctx, string_cache.value_field.Get(isolate), v8::Boolean::New(isolate, *addr != 0)).Check();
-    }
-    
-    Type_Converter::Conversion_Result Create_Ref(v8::Isolate* isolate, v8::Local<v8::Context> context, v8::Local<v8::Object> parent_obj, cell value, AMX* amx, Ref_Type type) {
+    Type_Converter::Conversion_Result Create_Ref_Struct(v8::Local<v8::Object> parent_obj, cell value, AMX* amx, Type_Converter::Ref_Type type) {
         Type_Converter::Conversion_Result result;
         result.memory = std::make_unique<Samp_SDK::Amx_Scoped_Memory>(amx, 1);
         
@@ -111,30 +93,10 @@ namespace {
         *phys_addr = value;
         result.value = result.memory->Get_Amx_Addr();
         
-        switch (type) {
-            case Ref_Type::Int:
-                result.updater = [isolate, parent_obj, context, phys_addr]() {
-                    v8::HandleScope hs(isolate);
-                    Update_Int_Ref(isolate, parent_obj, context, phys_addr);
-                };
+        result.update_data.parent = parent_obj;
+        result.update_data.phys_addr = phys_addr;
+        result.update_data.type = type;
 
-                break;
-            case Ref_Type::Float:
-                result.updater = [isolate, parent_obj, context, phys_addr]() {
-                    v8::HandleScope hs(isolate);
-                    Update_Float_Ref(isolate, parent_obj, context, phys_addr);
-                };
-
-                break;
-            case Ref_Type::Bool:
-                result.updater = [isolate, parent_obj, context, phys_addr]() {
-                    v8::HandleScope hs(isolate);
-                    Update_Bool_Ref(isolate, parent_obj, context, phys_addr);
-                };
-
-                break;
-        }
-        
         return result;
     }
 }
@@ -165,15 +127,8 @@ Type_Converter::Conversion_Result Type_Converter::To_Cell(v8::Isolate* isolate, 
     }
     
     if (value->IsString()) {
-        v8::String::Utf8Value str(isolate, value);
-        
-        if (!*str) {
-            result.value = 0;
-
-            return result;
-        }
-        
-        size_t len = str.length();
+        v8::Local<v8::String> v8_str = value.As<v8::String>();
+        int len = v8_str->Length();
         result.memory = std::make_unique<Samp_SDK::Amx_Scoped_Memory>(amx, len + 1);
         
         if (!result.memory || !result.memory->Is_Valid()) {
@@ -181,8 +136,28 @@ Type_Converter::Conversion_Result Type_Converter::To_Cell(v8::Isolate* isolate, 
 
             return result;
         }
+
+        cell* phys_addr = result.memory->Get_Phys_Addr();
+
+        if (len < 2048) {
+            uint8_t buffer[2048];
+            int written = v8_str->WriteOneByte(isolate, buffer, 0, len, v8::String::NO_NULL_TERMINATION);
+            
+            for (int i = 0; i < written; i++)
+                phys_addr[i] = static_cast<cell>(buffer[i]);
+
+            phys_addr[written] = 0;
+        } 
+        else {
+            std::vector<uint8_t> buffer(len + 1);
+            int written = v8_str->WriteOneByte(isolate, buffer.data(), 0, len, v8::String::NO_NULL_TERMINATION);
+            
+            for (int i = 0; i < written; i++)
+                phys_addr[i] = static_cast<cell>(buffer[i]);
+
+            phys_addr[written] = 0;
+        }
         
-        Samp_SDK::amx::Set_String(result.memory->Get_Phys_Addr(), *str, len + 1);
         result.value = result.memory->Get_Amx_Addr();
 
         return result;
@@ -206,39 +181,44 @@ Type_Converter::Conversion_Result Type_Converter::To_Cell(v8::Isolate* isolate, 
                     double num = val_prop->NumberValue(context).FromMaybe(0.0);
                     bool is_float = (num != std::floor(num));
                     
-                    if (is_float)
-                        return Create_Ref(isolate, context, parent_obj, Samp_SDK::amx::AMX_FTOC(static_cast<float>(num)), amx, Ref_Type::Float);
-                    else
-                        return Create_Ref(isolate, context, parent_obj, static_cast<cell>(num), amx, Ref_Type::Int);
+                    return Create_Ref_Struct(parent_obj, is_float ? Samp_SDK::amx::AMX_FTOC(static_cast<float>(num)) : static_cast<cell>(num), amx, is_float ? Ref_Type::Float : Ref_Type::Int);
                 }
                 else if (val_prop->IsBoolean())
-                    return Create_Ref(isolate, context, parent_obj, val_prop->BooleanValue(isolate) ? 1 : 0, amx, Ref_Type::Bool);
+                    return Create_Ref_Struct(parent_obj, val_prop->BooleanValue(isolate) ? 1 : 0, amx, Ref_Type::Bool);
                 else if (val_prop->IsString()) {
-                    v8::String::Utf8Value str(isolate, val_prop);
-                    size_t len = str.length();
+                    v8::Local<v8::String> v8_str = val_prop.As<v8::String>();
+                    int len = v8_str->Length();
                     size_t buffer_size = std::max<size_t>(Constants::DEFAULT_STRING_BUFFER_SIZE, len + 1);
                     
                     result.memory = std::make_unique<Samp_SDK::Amx_Scoped_Memory>(amx, buffer_size);
 
                     if (result.memory && result.memory->Is_Valid()) {
-                        Samp_SDK::amx::Set_String(result.memory->Get_Phys_Addr(), *str, buffer_size);
-                        result.value = result.memory->Get_Amx_Addr();
-                        
                         cell* phys_addr = result.memory->Get_Phys_Addr();
 
-                        result.updater = [isolate, parent_obj, context, phys_addr, buffer_size]() {
-                            v8::HandleScope hs(isolate);
-                            std::string result_str(buffer_size, '\0');
-
-                            Samp_SDK::amx::Get_String(&result_str[0], phys_addr, buffer_size);
+                        if (len < 1024) {
+                            uint8_t stack_buf[1024];
+                            int written = v8_str->WriteOneByte(isolate, stack_buf, 0, len, v8::String::NO_NULL_TERMINATION);
                             
-                            size_t null_pos = result_str.find('\0');
+                            for (int i = 0; i < written; i++)
+                                phys_addr[i] = static_cast<cell>(stack_buf[i]);
 
-                            if (null_pos != std::string::npos)
-                                result_str.resize(null_pos);
+                            phys_addr[written] = 0;
+                        }
+                        else {
+                            std::vector<uint8_t> heap_buf(len + 1);
+                            int written = v8_str->WriteOneByte(isolate, heap_buf.data(), 0, len, v8::String::NO_NULL_TERMINATION);
                             
-                            parent_obj->Set(context, string_cache.value_field.Get(isolate), v8::String::NewFromUtf8(isolate, result_str.c_str()).ToLocalChecked()).Check();
-                        };
+                            for (int i = 0; i < written; i++)
+                                phys_addr[i] = static_cast<cell>(heap_buf[i]);
+
+                            phys_addr[written] = 0;
+                        }
+
+                        result.value = result.memory->Get_Amx_Addr();
+                        result.update_data.parent = parent_obj;
+                        result.update_data.phys_addr = phys_addr;
+                        result.update_data.type = Ref_Type::String;
+                        result.update_data.size = buffer_size;
                     }
 
                     return result;
@@ -257,6 +237,53 @@ Type_Converter::Conversion_Result Type_Converter::To_Cell(v8::Isolate* isolate, 
     return result;
 }
 
+void Type_Converter::Apply_Updates(v8::Isolate* isolate, v8::Local<v8::Context> context, const Ref_Update_Data* updates, size_t count) {
+    if (count == 0 || !updates)
+        return;
+
+    string_cache.Ensure_Initialized(isolate);
+    v8::Local<v8::String> val_field = string_cache.value_field.Get(isolate);
+
+    for (size_t i = 0; i < count; ++i) {
+        const auto& data = updates[i];
+
+        if (data.type == Ref_Type::None)
+            continue;
+        
+        switch (data.type) {
+            case Ref_Type::Int:
+                data.parent->Set(context, val_field, v8::Integer::New(isolate, *data.phys_addr)).Check();
+
+                break;
+            case Ref_Type::Float: {
+                float f = Samp_SDK::amx::AMX_CTOF(*data.phys_addr);
+                data.parent->Set(context, val_field, v8::Number::New(isolate, f)).Check();
+
+                break;
+            }
+            case Ref_Type::Bool:
+                data.parent->Set(context, val_field, v8::Boolean::New(isolate, *data.phys_addr != 0)).Check();
+
+                break;
+            case Ref_Type::String: {
+                std::string result_str(data.size, '\0');
+                Samp_SDK::amx::Get_String(&result_str[0], data.phys_addr, data.size);
+                
+                size_t null_pos = result_str.find('\0');
+
+                if (null_pos != std::string::npos)
+                    result_str.resize(null_pos);
+                
+                data.parent->Set(context, val_field, v8::String::NewFromOneByte(isolate, reinterpret_cast<const uint8_t*>(result_str.c_str()), v8::NewStringType::kNormal).ToLocalChecked()).Check();
+
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
 cell Type_Converter::To_Return_Code(v8::Isolate* isolate, v8::Local<v8::Context> context, v8::Local<v8::Value> js_value) {
     if (js_value.IsEmpty() || js_value->IsUndefined() || js_value->IsNull())
         return PLUGIN_PUBLIC_CONTINUE;
@@ -264,7 +291,7 @@ cell Type_Converter::To_Return_Code(v8::Isolate* isolate, v8::Local<v8::Context>
     if (js_value->IsBoolean())
         return js_value->BooleanValue(isolate) ? PLUGIN_PUBLIC_CONTINUE : PLUGIN_PUBLIC_STOP;
     
-    if (js_value->IsNumber())
+    if (js_value->IsInt32())
         return js_value->Int32Value(context).ToChecked();
     
     return PLUGIN_PUBLIC_CONTINUE;

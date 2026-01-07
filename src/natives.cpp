@@ -1,4 +1,4 @@
-﻿/* ============================================================================ *
+/* ============================================================================ *
  * Kainure - Node.js Framework for SA-MP (San Andreas Multiplayer)              *
  * ================================= About ==================================== *
  *                                                                              *
@@ -32,10 +32,10 @@
 
 #include <atomic>
 //
-#include "samp-sdk/amx_defs.h"
-#include "samp-sdk/interceptor_manager.hpp"
-#include "samp-sdk/callbacks.hpp"
-#include "samp-sdk/platform.hpp"
+#include "sdk/amx_defs.h"
+#include "sdk/interceptor_manager.hpp"
+#include "sdk/callbacks.hpp"
+#include "sdk/platform.hpp"
 //
 #include "natives.hpp"
 #include "native_hooks.hpp"
@@ -172,6 +172,8 @@ void Natives::Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
         
         if (argc <= static_cast<int>(Constants::STACK_ARGS_THRESHOLD)) {
             Type_Converter::Conversion_Result conversions[Constants::STACK_ARGS_THRESHOLD];
+            Type_Converter::Ref_Update_Data updates_stack[Constants::STACK_ARGS_THRESHOLD];
+            size_t updates_count = 0;
             cell params_stack[Constants::STACK_BUFFER_SIZE] {};
             
             params_stack[0] = argc * sizeof(cell);
@@ -179,14 +181,14 @@ void Natives::Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
             for (int i = 0; i < argc; i++) {
                 conversions[i] = Type_Converter::To_Cell(isolate, context, info[i], amx_fake);
                 params_stack[i + 1] = conversions[i].value;
+                
+                if (conversions[i].Has_Update())
+                    updates_stack[updates_count++] = conversions[i].update_data;
             }
             
             cell retval = data->native_func(amx_fake, params_stack);
             
-            for (int i = 0; i < argc; i++) {
-                if (conversions[i].Has_Updater())
-                    conversions[i].updater();
-            }
+            Type_Converter::Apply_Updates(isolate, context, updates_stack, updates_count);
             
             info.GetReturnValue().Set(v8::Integer::New(isolate, retval));
 
@@ -196,6 +198,9 @@ void Natives::Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
         std::vector<Type_Converter::Conversion_Result> conversions;
         conversions.reserve(argc);
 
+        std::vector<Type_Converter::Ref_Update_Data> updates_vector;
+        updates_vector.reserve(argc);
+
         std::vector<cell> params_vec;
         params_vec.reserve(argc + 1);
         params_vec.push_back(argc * sizeof(cell));
@@ -203,14 +208,14 @@ void Natives::Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
         for (int i = 0; i < argc; i++) {
             conversions.push_back(Type_Converter::To_Cell(isolate, context, info[i], amx_fake));
             params_vec.push_back(conversions.back().value);
+            
+            if (conversions.back().Has_Update())
+                updates_vector.push_back(conversions.back().update_data);
         }
 
         cell retval = data->native_func(amx_fake, params_vec.data());
 
-        for (auto& conversion : conversions) {
-            if (conversion.Has_Updater())
-                conversion.updater();
-        }
+        Type_Converter::Apply_Updates(isolate, context, updates_vector.data(), updates_vector.size());
 
         info.GetReturnValue().Set(v8::Integer::New(isolate, retval));
     }

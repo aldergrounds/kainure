@@ -22,7 +22,10 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_compile_options(${PROJECT_NAME} PRIVATE
     -m32
     -fPIC
-    -O2
+    -O3
+    -flto
+    -msse2
+    -funroll-loops
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -40,6 +43,8 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}
     SYSTEM PRIVATE
         ${DEPS_DIR}
+        ${DEPS_DIR}/json/single_include
+        ${DEPS_DIR}/samp-sdk
         ${NODE_INCLUDES_DIR}/node
         ${NODE_INCLUDES_DIR}/uv
         ${NODE_INCLUDES_DIR}/v8
@@ -54,6 +59,7 @@ find_library(NODE_LIB
 
 target_link_options(${PROJECT_NAME} PRIVATE
     -m32
+    -flto
     -Wl,-rpath,'$ORIGIN/..'
 )
 

@@ -97,11 +97,11 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;KAINURE_EXPORTS;_WINDOWS;_USRDLL;WIN32_LEAN_AND_MEAN;NOMINMAX;BUILDING_NODE_EXTENSION;USING_V8_SHARED;USING_UV_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\deps;$(SolutionDir)..\..\deps\node\includes;$(SolutionDir)..\..\deps\node\includes\node;$(SolutionDir)..\..\deps\node\includes\uv;$(SolutionDir)..\..\deps\node\includes\v8;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\deps;$(SolutionDir)..\..\deps\node\includes;$(SolutionDir)..\..\deps\node\includes\node;$(SolutionDir)..\..\deps\node\includes\uv;$(SolutionDir)..\..\deps\node\includes\v8;$(SolutionDir)..\..\deps\samp-sdk;$(SolutionDir)..\..\deps\json\single_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeaderOutputFile />
     </ClCompile>
     <Link>
@@ -125,7 +125,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\deps;$(SolutionDir)..\..\deps\node\includes;$(SolutionDir)..\..\deps\node\includes\node;$(SolutionDir)..\..\deps\node\includes\uv;$(SolutionDir)..\..\deps\node\includes\v8;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\deps;$(SolutionDir)..\..\deps\node\includes;$(SolutionDir)..\..\deps\node\includes\node;$(SolutionDir)..\..\deps\node\includes\uv;$(SolutionDir)..\..\deps\node\includes\v8;$(SolutionDir)..\..\deps\samp-sdk;$(SolutionDir)..\..\deps\json\single_include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PrecompiledHeaderOutputFile />
     </ClCompile>
     <Link>

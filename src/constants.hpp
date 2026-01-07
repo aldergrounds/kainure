@@ -67,7 +67,7 @@ namespace Constants {
     constexpr int V8_PLATFORM_THREADS = 4;
 
     // Buffer sizes
-    constexpr size_t DEFAULT_STRING_BUFFER_SIZE = 4096;
+    constexpr size_t DEFAULT_STRING_BUFFER_SIZE = 512;
     constexpr size_t LOG_BUFFER_SIZE = 2048;
     constexpr size_t AMX_SANDBOX_SIZE = 64 * 1024;
 
@@ -124,6 +124,6 @@ namespace Constants {
     constexpr char SIGNATURE_TYPE_STRING = 's';
 
     // Native function call optimization
-    constexpr size_t STACK_ARGS_THRESHOLD = 16;
-    constexpr size_t STACK_BUFFER_SIZE = 17;
+    constexpr size_t STACK_ARGS_THRESHOLD = 32;
+    constexpr size_t STACK_BUFFER_SIZE = STACK_ARGS_THRESHOLD + 1;
 }
