@@ -8,7 +8,6 @@ BUILD_CACHE_DIR="$PROJECT_ROOT/compiled/Linux/build_temp"
 IMAGE_NAME="kainure-builder-x86"
 
 mkdir -p "$OUTPUT_DIR"
-mkdir -p "$BUILD_CACHE_DIR"
 
 if [[ "$(docker images -q $IMAGE_NAME 2> /dev/null)" == "" ]] || [[ "$1" == "rebuild" ]]; then
     echo "Building Docker image..."
@@ -28,14 +27,15 @@ docker run --rm \
     -e HOME=/tmp \
     kainure-builder-x86 \
     /bin/bash -c "
-        mkdir -p compiled/Linux/build_temp && \
-        cmake -S src -B compiled/Linux/build_temp -DCMAKE_BUILD_TYPE=Release && \
-        cmake --build compiled/Linux/build_temp -j\$(nproc)
+        rm -rf compiled/Linux/build_temp && \
+        cmake -S src -B compiled/Linux/build_temp -DCMAKE_BUILD_TYPE=Release -Wno-dev && \
+        cmake --build compiled/Linux/build_temp -j\$(nproc) && \
+        rm -rf compiled/Linux/build_temp
     "
 
-if [ -f "$BUILD_CACHE_DIR/Kainure.so" ]; then
-    cp "$BUILD_CACHE_DIR/Kainure.so" "$OUTPUT_DIR/Kainure.so"
-    echo "Success! Binary in: $OUTPUT_DIR/Kainure.so"
+if [ -f "$OUTPUT_DIR/Kainure.so" ]; then
+    echo "Completed: compiled/Linux/Kainure.so"
 else
-    echo "Build finished."
+    echo "Error: Build failed - Kainure.so not found"
+    exit 1
 fi
