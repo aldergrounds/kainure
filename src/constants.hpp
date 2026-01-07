@@ -81,7 +81,6 @@ namespace Constants {
 
     constexpr const char* KAINURE_REF_FIELD = "__kainure_ref";
     constexpr const char* KAINURE_PTR_FIELD = "__kainure_ptr";
-    constexpr const char* KAINURE_FLOAT_REF_FIELD = "__kainure_float_ref";
 
     // JSON config keys
     constexpr const char* CONFIG_KEY_CONFIGS = "configs";
