@@ -32,7 +32,7 @@
 
 #define SAMP_SDK_IMPLEMENTATION
 #define SAMP_SDK_WANT_PROCESS_TICK
-#include "samp-sdk/samp_sdk.hpp"
+#include "sdk/samp_sdk.hpp"
 //
 #include "constants.hpp"
 #include "runtime_manager.hpp"
