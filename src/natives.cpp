@@ -1,4 +1,4 @@
-﻿/* ============================================================================ *
+/* ============================================================================ *
  * Kainure - Node.js Framework for SA-MP (San Andreas Multiplayer)              *
  * ================================= About ==================================== *
  *                                                                              *
@@ -73,7 +73,7 @@ namespace {
     static thread_local Lazy_Sandbox tl_sandbox;
 }
 
-void Natives::Generate_Binding(v8::Isolate* isolate, v8::Local<v8::Object> target, const std::string& name, uint32_t hash, char return_type) {
+void Natives::Generate_Binding(v8::Isolate* isolate, v8::Local<v8::Object> target, const std::string& name, uint32_t hash) {
     try {
         if (!isolate)
             throw V8_Exception("Isolate is null in 'Generate_Binding'.");
@@ -96,7 +96,6 @@ void Natives::Generate_Binding(v8::Isolate* isolate, v8::Local<v8::Object> targe
         data->native_func = native_func;
         data->native_hash = hash;
         data->native_name = name;
-        data->return_type = return_type;
 
         v8::Local<v8::External> external_data = v8::External::New(isolate, data.get());
 
@@ -133,80 +132,103 @@ void Natives::Set_Has_Hooks(bool has_hooks) {
 
 void Natives::Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
-    
-    if (!isolate) return;
 
-    v8::HandleScope handle_scope(isolate);
-    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    try {
+        if (!isolate)
+            throw V8_Exception("Native handler called with null isolate.");
 
-    Native_Binding_Data* data = static_cast<Native_Binding_Data*>(info.Data().As<v8::External>()->Value());
+        v8::HandleScope handle_scope(isolate);
+        v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-    if (!data || !data->native_func) {
-        isolate->ThrowException(v8::Exception::Error(v8::String::NewFromUtf8Literal(isolate, "Invalid native pointer.")));
-        return;
-    }
+        if (context.IsEmpty())
+            throw V8_Exception("Native handler called with empty context.");
 
-    if (has_any_hooks.load(std::memory_order_relaxed)) {
-        if (!Native_Hooks::Instance().Dispatch(isolate, data->native_name, info))
-            return;
-    }
+        if (!info.Data()->IsExternal())
+            throw V8_Exception("Invalid data in native handler.");
 
-    int argc = info.Length();
-    AMX* amx_fake = tl_sandbox.Get();
-    cell retval = 0;
+        Native_Binding_Data* data = static_cast<Native_Binding_Data*>(info.Data().As<v8::External>()->Value());
 
-    
-    if (argc == 0) {
-        cell params[1] = { 0 }; 
-        retval = data->native_func(amx_fake, params);
-    }
-    else if (argc <= static_cast<int>(Constants::STACK_ARGS_THRESHOLD)) {
-        cell params_stack[Constants::STACK_BUFFER_SIZE] = {};
-        Type_Converter::Conversion_Result conversions[Constants::STACK_ARGS_THRESHOLD];
-        Type_Converter::Ref_Update_Data updates_stack[Constants::STACK_ARGS_THRESHOLD];
-        size_t updates_count = 0;
-        
-        params_stack[0] = argc * sizeof(cell);
-        
-        for (int i = 0; i < argc; i++) {
-            conversions[i] = Type_Converter::To_Cell(isolate, context, info[i], amx_fake);
-            params_stack[i + 1] = conversions[i].value;
-            
-            if (conversions[i].Has_Update()) {
-                updates_stack[updates_count++] = conversions[i].update_data;
-            }
+        if (!data || !data->native_func)
+            throw AMX_Exception("Native function pointer is null.");
+
+        if (has_any_hooks.load(std::memory_order_relaxed)) {
+            if (!Native_Hooks::Instance().Dispatch(isolate, data->native_name, info))
+                return;
         }
+
+        int argc = info.Length();
+
+        if (argc == 0) {
+            AMX* amx_fake = tl_sandbox.Get();
+            cell params[1] = { 0 };
+            cell retval = data->native_func(amx_fake, params);
+
+            info.GetReturnValue().Set(v8::Integer::New(isolate, retval));
+
+            return;
+        }
+
+        AMX* amx_fake = tl_sandbox.Get();
         
-        retval = data->native_func(amx_fake, params_stack);
-        Type_Converter::Apply_Updates(isolate, context, updates_stack, updates_count);
-    }
-    else {
+        if (argc <= static_cast<int>(Constants::STACK_ARGS_THRESHOLD)) {
+            Type_Converter::Conversion_Result conversions[Constants::STACK_ARGS_THRESHOLD];
+            Type_Converter::Ref_Update_Data updates_stack[Constants::STACK_ARGS_THRESHOLD];
+            size_t updates_count = 0;
+            cell params_stack[Constants::STACK_BUFFER_SIZE] {};
+            
+            params_stack[0] = argc * sizeof(cell);
+            
+            for (int i = 0; i < argc; i++) {
+                conversions[i] = Type_Converter::To_Cell(isolate, context, info[i], amx_fake);
+                params_stack[i + 1] = conversions[i].value;
+                
+                if (conversions[i].Has_Update())
+                    updates_stack[updates_count++] = conversions[i].update_data;
+            }
+            
+            cell retval = data->native_func(amx_fake, params_stack);
+            
+            Type_Converter::Apply_Updates(isolate, context, updates_stack, updates_count);
+            
+            info.GetReturnValue().Set(v8::Integer::New(isolate, retval));
+
+            return;
+        }
+
         std::vector<Type_Converter::Conversion_Result> conversions;
         conversions.reserve(argc);
-        
+
         std::vector<Type_Converter::Ref_Update_Data> updates_vector;
         updates_vector.reserve(argc);
-        
-        std::vector<cell> params_vec(argc + 1 + 4, 0);
-        params_vec[0] = argc * sizeof(cell);
+
+        std::vector<cell> params_vec;
+        params_vec.reserve(argc + 1);
+        params_vec.push_back(argc * sizeof(cell));
 
         for (int i = 0; i < argc; i++) {
             conversions.push_back(Type_Converter::To_Cell(isolate, context, info[i], amx_fake));
-            params_vec[i + 1] = conversions.back().value;
+            params_vec.push_back(conversions.back().value);
             
             if (conversions.back().Has_Update())
                 updates_vector.push_back(conversions.back().update_data);
         }
 
-        retval = data->native_func(amx_fake, params_vec.data());
+        cell retval = data->native_func(amx_fake, params_vec.data());
 
         Type_Converter::Apply_Updates(isolate, context, updates_vector.data(), updates_vector.size());
-    }
-    
-    if (data->return_type == 'f') {
-        float f_ret = Samp_SDK::amx::AMX_CTOF(retval);
-        info.GetReturnValue().Set(v8::Number::New(isolate, f_ret));
-    } else {
+
         info.GetReturnValue().Set(v8::Integer::New(isolate, retval));
+    }
+    catch (const Plugin_Exception& e) {
+        Logger::Log(Log_Level::ERROR_s, "'%s'.", e.what());
+
+        if (isolate)
+            info.GetReturnValue().Set(v8::Undefined(isolate));
+    }
+    catch (const std::exception& e) {
+        Logger::Log(Log_Level::ERROR_s, "Unexpected exception in native handler: '%s'.", e.what());
+
+        if (isolate)
+            info.GetReturnValue().Set(v8::Undefined(isolate));
     }
 }
