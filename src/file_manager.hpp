@@ -38,6 +38,10 @@ class File_Manager {
     public:
         struct Config {
             std::string main_file;
+
+            bool encoding_enabled = false;
+            std::string encoding_target;
+
             bool use_typescript = false;
             std::string ts_output_dir;
             bool ts_auto_install = true;

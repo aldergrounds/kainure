@@ -35,6 +35,7 @@
 #include "sdk/samp_sdk.hpp"
 //
 #include "constants.hpp"
+#include "encoding_converter.hpp"
 #include "runtime_manager.hpp"
 #include "event_dispatcher.hpp"
 #include "natives.hpp"
@@ -59,6 +60,8 @@ bool OnLoad() {
 
         if (!File_Manager::Instance().Validate_Main_File(config.main_file))
             return (Logger::Log(Log_Level::ERROR_s, "Main file validation failed. Aborting load to prevent crash."), false);
+
+        Encoding_Converter::Instance().Initialize(config.encoding_enabled, config.encoding_target);
 
         Samp_SDK::Detail::Get_Public_Handler() = Publics::Handler;
         Samp_SDK::Detail::Get_Has_Public_Handler() = Publics::Has_Handler;

@@ -32,12 +32,13 @@
 
 #include <vector>
 //
-#include "sdk/amx_api.hpp"
-#include "sdk/amx_defs.h"
-#include "sdk/amx_manager.hpp"
-#include "sdk/interceptor_manager.hpp"
-#include "sdk/public_dispatcher.hpp"
+#include "sdk/amx/amx_api.hpp"
+#include "sdk/amx/amx_defs.h"
+#include "sdk/amx/amx_manager.hpp"
+#include "sdk/hooks/interceptor_manager.hpp"
+#include "sdk/events/public_dispatcher.hpp"
 //
+#include "encoding_converter.hpp"
 #include "publics.hpp"
 #include "event_dispatcher.hpp"
 #include "runtime_manager.hpp"
@@ -109,13 +110,16 @@ bool Publics::Handler(const std::string& name, AMX* amx, cell& result) {
                         int len = 0;
 
                         if (Samp_SDK::amx::STR_Len(phys_addr, &len) == static_cast<int>(Amx_Error::None) && len >= 0) {
-                            std::string str_val(len, '\0');
-                            Samp_SDK::amx::Get_String(&str_val[0], phys_addr, len + 1);
+                            std::string target_str(len, '\0');
+                            Samp_SDK::amx::Get_String(&target_str[0], phys_addr, len + 1);
 
-                            if (!str_val.empty() && str_val.back() == '\0')
-                                str_val.pop_back();
+                            if (!target_str.empty() && target_str.back() == '\0')
+                                target_str.pop_back();
 
-                            js_args.push_back(v8::String::NewFromUtf8(isolate, str_val.c_str(), v8::NewStringType::kNormal).ToLocalChecked());
+                            std::string utf8_str = Encoding_Converter::Instance().Target_To_UTF8(target_str);
+
+                            js_args.push_back(v8::String::NewFromUtf8(isolate, utf8_str.c_str(),
+                                v8::NewStringType::kNormal).ToLocalChecked());
                         }
                         else
                             js_args.push_back(v8::String::Empty(isolate));
@@ -213,6 +217,7 @@ void Publics::Call_Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
         for (int i = 0; i < args_count; i++) {
             converted_args.push_back(Type_Converter::To_Cell(isolate, context, info[i + 1], target_amx));
+
             if (converted_args.back().Has_Update())
                 updates.push_back(converted_args.back().update_data);
         }
@@ -237,6 +242,7 @@ void Publics::Call_Handler(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
         if (exec_error != static_cast<int>(Amx_Error::None) && exec_error != static_cast<int>(Amx_Error::Sleep)) {
             bool is_expected_ghost_error = (public_index == PLUGIN_EXEC_GHOST_PUBLIC && exec_error == static_cast<int>(Amx_Error::Index));
+
             if (!is_expected_ghost_error)
                 Logger::Log(Log_Level::ERROR_s, "Error executing public '%s': Code '%d'.", public_name.c_str(), exec_error);
         }

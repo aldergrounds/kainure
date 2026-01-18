@@ -86,6 +86,10 @@ namespace Constants {
     constexpr const char* CONFIG_KEY_CONFIGS = "configs";
     constexpr const char* CONFIG_KEY_MAIN_FILE = "main_file";
 
+    constexpr const char* CONFIG_KEY_ENCODING = "encoding";
+    constexpr const char* CONFIG_KEY_ENCODING_ENABLED = "enabled";
+    constexpr const char* CONFIG_KEY_ENCODING_TARGET = "target";
+
     constexpr const char* CONFIG_KEY_TYPESCRIPT = "typescript";
     constexpr const char* CONFIG_KEY_TS_ENABLED = "enabled";
     constexpr const char* CONFIG_KEY_TS_OUT_DIR = "output_dir";

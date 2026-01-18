@@ -1,4 +1,4 @@
-/* ============================================================================ *
+﻿/* ============================================================================ *
  * Kainure - Node.js Framework for SA-MP (San Andreas Multiplayer)              *
  * ================================= About ==================================== *
  *                                                                              *
@@ -33,14 +33,13 @@
 #include <string>
 #include <cmath>
 #include <memory>
-#include <cstdint>
 #include <algorithm>
-#include <vector>
 //
-#include "sdk/amx_api.hpp"
-#include "sdk/public_dispatcher.hpp"
-#include "sdk/platform.hpp"
+#include "sdk/amx/amx_api.hpp"
+#include "sdk/events/public_dispatcher.hpp"
+#include "sdk/core/platform.hpp"
 //
+#include "encoding_converter.hpp"
 #include "type_converter.hpp"
 #include "constants.hpp"
 
@@ -128,9 +127,15 @@ Type_Converter::Conversion_Result Type_Converter::To_Cell(v8::Isolate* isolate, 
     
     if (value->IsString()) {
         v8::Local<v8::String> v8_str = value.As<v8::String>();
-        int len = v8_str->Length();
+
+        v8::String::Utf8Value utf8_value(isolate, v8_str);
+        std::string utf8_str(*utf8_value ? *utf8_value : "");
+
+        std::string target_str = Encoding_Converter::Instance().UTF8_To_Target(utf8_str);
+
+        int len = static_cast<int>(target_str.length());
         result.memory = std::make_unique<Samp_SDK::Amx_Scoped_Memory>(amx, len + 1);
-        
+
         if (!result.memory || !result.memory->Is_Valid()) {
             result.value = 0;
 
@@ -139,25 +144,11 @@ Type_Converter::Conversion_Result Type_Converter::To_Cell(v8::Isolate* isolate, 
 
         cell* phys_addr = result.memory->Get_Phys_Addr();
 
-        if (len < 2048) {
-            uint8_t buffer[2048];
-            int written = v8_str->WriteOneByte(isolate, buffer, 0, len, v8::String::NO_NULL_TERMINATION);
-            
-            for (int i = 0; i < written; i++)
-                phys_addr[i] = static_cast<cell>(buffer[i]);
+        for (int i = 0; i < len; i++)
+            phys_addr[i] = static_cast<cell>(static_cast<unsigned char>(target_str[i]));
 
-            phys_addr[written] = 0;
-        } 
-        else {
-            std::vector<uint8_t> buffer(len + 1);
-            int written = v8_str->WriteOneByte(isolate, buffer.data(), 0, len, v8::String::NO_NULL_TERMINATION);
-            
-            for (int i = 0; i < written; i++)
-                phys_addr[i] = static_cast<cell>(buffer[i]);
+        phys_addr[len] = 0;
 
-            phys_addr[written] = 0;
-        }
-        
         result.value = result.memory->Get_Amx_Addr();
 
         return result;
@@ -187,32 +178,24 @@ Type_Converter::Conversion_Result Type_Converter::To_Cell(v8::Isolate* isolate, 
                     return Create_Ref_Struct(parent_obj, val_prop->BooleanValue(isolate) ? 1 : 0, amx, Ref_Type::Bool);
                 else if (val_prop->IsString()) {
                     v8::Local<v8::String> v8_str = val_prop.As<v8::String>();
-                    int len = v8_str->Length();
+
+                    v8::String::Utf8Value utf8_value(isolate, v8_str);
+                    std::string utf8_str(*utf8_value ? *utf8_value : "");
+
+                    std::string target_str = Encoding_Converter::Instance().UTF8_To_Target(utf8_str);
+
+                    int len = static_cast<int>(target_str.length());
                     size_t buffer_size = std::max<size_t>(Constants::DEFAULT_STRING_BUFFER_SIZE, len + 1);
-                    
+
                     result.memory = std::make_unique<Samp_SDK::Amx_Scoped_Memory>(amx, buffer_size);
 
                     if (result.memory && result.memory->Is_Valid()) {
                         cell* phys_addr = result.memory->Get_Phys_Addr();
 
-                        if (len < 1024) {
-                            uint8_t stack_buf[1024];
-                            int written = v8_str->WriteOneByte(isolate, stack_buf, 0, len, v8::String::NO_NULL_TERMINATION);
-                            
-                            for (int i = 0; i < written; i++)
-                                phys_addr[i] = static_cast<cell>(stack_buf[i]);
+                        for (int i = 0; i < len; i++)
+                            phys_addr[i] = static_cast<cell>(static_cast<unsigned char>(target_str[i]));
 
-                            phys_addr[written] = 0;
-                        }
-                        else {
-                            std::vector<uint8_t> heap_buf(len + 1);
-                            int written = v8_str->WriteOneByte(isolate, heap_buf.data(), 0, len, v8::String::NO_NULL_TERMINATION);
-                            
-                            for (int i = 0; i < written; i++)
-                                phys_addr[i] = static_cast<cell>(heap_buf[i]);
-
-                            phys_addr[written] = 0;
-                        }
+                        phys_addr[len] = 0;
 
                         result.value = result.memory->Get_Amx_Addr();
                         result.update_data.parent = parent_obj;
@@ -223,6 +206,7 @@ Type_Converter::Conversion_Result Type_Converter::To_Cell(v8::Isolate* isolate, 
 
                     return result;
                 }
+
             }
         }
     }
@@ -266,15 +250,17 @@ void Type_Converter::Apply_Updates(v8::Isolate* isolate, v8::Local<v8::Context> 
 
                 break;
             case Ref_Type::String: {
-                std::string result_str(data.size, '\0');
-                Samp_SDK::amx::Get_String(&result_str[0], data.phys_addr, data.size);
-                
-                size_t null_pos = result_str.find('\0');
+                std::string target_str(data.size, '\0');
+                Samp_SDK::amx::Get_String(&target_str[0], data.phys_addr, data.size);
+
+                size_t null_pos = target_str.find('\0');
 
                 if (null_pos != std::string::npos)
-                    result_str.resize(null_pos);
-                
-                data.parent->Set(context, val_field, v8::String::NewFromOneByte(isolate, reinterpret_cast<const uint8_t*>(result_str.c_str()), v8::NewStringType::kNormal).ToLocalChecked()).Check();
+                    target_str.resize(null_pos);
+
+                std::string utf8_str = Encoding_Converter::Instance().Target_To_UTF8(target_str);
+
+                data.parent->Set(context, val_field, v8::String::NewFromUtf8(isolate, utf8_str.c_str(), v8::NewStringType::kNormal).ToLocalChecked()).Check();
 
                 break;
             }

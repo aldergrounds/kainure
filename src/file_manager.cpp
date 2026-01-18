@@ -162,6 +162,12 @@ void File_Manager::Create_Default_Config() {
         
         nlohmann::ordered_json configs;
         configs[Constants::CONFIG_KEY_MAIN_FILE] = Constants::DEFAULT_MAIN_FILE;
+        
+        nlohmann::ordered_json encoding;
+        encoding[Constants::CONFIG_KEY_ENCODING_ENABLED] = false;
+        encoding[Constants::CONFIG_KEY_ENCODING_TARGET] = 65001;
+        configs[Constants::CONFIG_KEY_ENCODING] = encoding;
+        
         j[Constants::CONFIG_KEY_CONFIGS] = configs;
         
         nlohmann::ordered_json typescript;
@@ -185,6 +191,10 @@ void File_Manager::Create_Default_Config() {
         Logger::Log(Log_Level::INFO, "Created default config file: '%s'.", Constants::FILE_CONFIG);
 
         config_.main_file = Constants::DEFAULT_MAIN_FILE;
+
+        config_.encoding_enabled = false;
+        config_.encoding_target = std::to_string(65001);
+
         config_.use_typescript = false;
         config_.ts_output_dir = Constants::DEFAULT_TS_OUT_DIR;
         config_.ts_auto_install = true;
@@ -208,6 +218,10 @@ void File_Manager::Create_Default_Config() {
 
 void File_Manager::Set_Default_Config() {
     config_.main_file = Constants::DEFAULT_MAIN_FILE;
+
+    config_.encoding_enabled = false;
+    config_.encoding_target = std::to_string(65001);
+
     config_.use_typescript = false;
     config_.ts_output_dir = Constants::DEFAULT_TS_OUT_DIR;
     config_.ts_auto_install = true;
@@ -400,6 +414,46 @@ bool File_Manager::Load_Config() {
         nlohmann::ordered_json& configs = j[Constants::CONFIG_KEY_CONFIGS];
         
         Load_JSON_Field(configs, Constants::CONFIG_KEY_MAIN_FILE, config_.main_file, std::string(Constants::DEFAULT_MAIN_FILE), configs, save_needed);
+        
+        Ensure_JSON_Section(configs, Constants::CONFIG_KEY_ENCODING, save_needed);
+        nlohmann::ordered_json& encoding = configs[Constants::CONFIG_KEY_ENCODING];
+        
+        Load_JSON_Field(encoding, Constants::CONFIG_KEY_ENCODING_ENABLED, config_.encoding_enabled, false, encoding, save_needed);
+        
+        if (encoding.contains(Constants::CONFIG_KEY_ENCODING_TARGET)) {
+            try {
+                if (encoding[Constants::CONFIG_KEY_ENCODING_TARGET].is_number_integer()) {
+                    unsigned int target_int = encoding[Constants::CONFIG_KEY_ENCODING_TARGET].get<unsigned int>();
+                    config_.encoding_target = std::to_string(target_int);
+                }
+                else if (encoding[Constants::CONFIG_KEY_ENCODING_TARGET].is_string())
+                    config_.encoding_target = encoding[Constants::CONFIG_KEY_ENCODING_TARGET].get<std::string>();
+                else {
+                    Logger::Log(Log_Level::WARNING, "'%s' has invalid type in config. Using default.", Constants::CONFIG_KEY_ENCODING_TARGET);
+
+                    config_.encoding_target = std::to_string(65001);
+                    encoding[Constants::CONFIG_KEY_ENCODING_TARGET] = 65001;
+
+                    save_needed = true;
+                }
+            }
+            catch (const nlohmann::json::exception& e) {
+                Logger::Log(Log_Level::WARNING, "'%s' has invalid value in config: %s. Using default.", Constants::CONFIG_KEY_ENCODING_TARGET, e.what());
+
+                config_.encoding_target = std::to_string(65001);
+                encoding[Constants::CONFIG_KEY_ENCODING_TARGET] = 65001;
+
+                save_needed = true;
+            }
+        }
+        else {
+            Logger::Log(Log_Level::WARNING, "'%s' missing in config. Adding default value.", Constants::CONFIG_KEY_ENCODING_TARGET);
+
+            config_.encoding_target = std::to_string(65001);
+            encoding[Constants::CONFIG_KEY_ENCODING_TARGET] = 65001;
+
+            save_needed = true;
+        }
         
         Ensure_JSON_Section(j, Constants::CONFIG_KEY_TYPESCRIPT, save_needed);
         nlohmann::ordered_json& typescript = j[Constants::CONFIG_KEY_TYPESCRIPT];

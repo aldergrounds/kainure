@@ -1,4 +1,4 @@
-/* ============================================================================ *
+﻿/* ============================================================================ *
  * Kainure - Node.js Framework for SA-MP (San Andreas Multiplayer)              *
  * ================================= About ==================================== *
  *                                                                              *
@@ -32,62 +32,50 @@
 
 #pragma once
 
-#include <exception>
 #include <string>
 
-class Plugin_Exception : public std::exception {
-    protected:
-        std::string message_;
-
+class Encoding_Converter {
     public:
-        explicit Plugin_Exception(const std::string& msg) : message_(msg) {}
+        static Encoding_Converter& Instance();
 
-        const char* what() const noexcept override {
-            return message_.c_str();
+        void Initialize(bool enabled, const std::string& target);
+
+        bool Is_Enabled() const {
+            return encoding_enabled_;
         }
-};
 
-class Runtime_Exception : public Plugin_Exception {
-    public:
-        explicit Runtime_Exception(const std::string& msg) : Plugin_Exception("[Runtime_Exception] " + msg) {}
-};
+        unsigned int Get_Target_Codepage() const {
+            return target_codepage_;
+        }
 
-class File_Exception : public Plugin_Exception {
-    public:
-        explicit File_Exception(const std::string& msg) : Plugin_Exception("[File_Exception] " + msg) {}
-};
+        const std::string& Get_Target_Encoding() const {
+            return target_encoding_;
+        }
 
-class Script_Exception : public Plugin_Exception {
-    public:
-        explicit Script_Exception(const std::string& msg) : Plugin_Exception("[Script_Exception] " + msg) {}
-};
+        std::string UTF8_To_Target(const std::string& utf8_str) const;
+        std::string Target_To_UTF8(const std::string& target_str) const;
 
-class Initialization_Exception : public Plugin_Exception {
-    public:
-        explicit Initialization_Exception(const std::string& msg) : Plugin_Exception("[Initialization_Exception] " + msg) {}
-};
+        bool UTF8_To_Target(const std::string& utf8_str, char* out_buffer, size_t buffer_size, size_t& out_length) const;
+        bool Target_To_UTF8(const char* target_str, size_t target_len, std::string& out_utf8) const;
 
-class V8_Exception : public Plugin_Exception {
-    public:
-        explicit V8_Exception(const std::string& msg) : Plugin_Exception("[V8_Exception] " + msg) {}
-};
+    private:
+        Encoding_Converter() = default;
+        ~Encoding_Converter() = default;
 
-class Config_Exception : public Plugin_Exception {
-    public:
-        explicit Config_Exception(const std::string& msg) : Plugin_Exception("[Config_Exception] " + msg) {}
-};
+        Encoding_Converter(const Encoding_Converter&) = delete;
+        Encoding_Converter& operator=(const Encoding_Converter&) = delete;
 
-class AMX_Exception : public Plugin_Exception {
-    public:
-        explicit AMX_Exception(const std::string& msg) : Plugin_Exception("[AMX_Exception] " + msg) {}
-};
+        bool encoding_enabled_ = false;
+        unsigned int target_codepage_ = 65001;
+        std::string target_encoding_;
+        bool is_windows_mode_ = true;
 
-class TypeScript_Exception : public Plugin_Exception {
-    public:
-        explicit TypeScript_Exception(const std::string& msg) : Plugin_Exception("[TypeScript_Exception] " + msg) {}
-};
-
-class Encoding_Exception : public Plugin_Exception {
-    public:
-        explicit Encoding_Exception(const std::string& msg) : Plugin_Exception("[Encoding_Exception] " + msg) {}
+#ifdef _WIN32
+        std::wstring UTF8_To_UTF16(const std::string& utf8_str) const;
+        std::string UTF16_To_UTF8(const std::wstring& utf16_str) const;
+        std::string UTF16_To_CodePage(const std::wstring& utf16_str, unsigned int codepage) const;
+        std::wstring CodePage_To_UTF16(const std::string& str, unsigned int codepage) const;
+#else
+        std::string Iconv_Convert(const std::string& input, const std::string& from_encoding, const std::string& to_encoding) const;
+#endif
 };

@@ -36,8 +36,9 @@
 #include <algorithm>
 #include <new>
 //
-#include "sdk/logger.hpp"
+#include "sdk/utils/logger.hpp"
 //
+#include "encoding_converter.hpp"
 #include "runtime_manager.hpp"
 #include "file_manager.hpp"
 #include "typescript_compiler.hpp"
@@ -268,7 +269,9 @@ void Runtime_Manager::JS_Print(const v8::FunctionCallbackInfo<v8::Value>& info) 
             ss << " ";
     }
 
-    Samp_SDK::Log("%s", ss.str().c_str());
+    std::string message = Encoding_Converter::Instance().UTF8_To_Target(ss.str());
+
+    Samp_SDK::Log("%s", message.c_str());
 }
 
 bool Runtime_Manager::Initialize_Platform() {
