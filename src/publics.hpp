@@ -34,7 +34,7 @@
 
 #include <string>
 //
-#include "sdk/amx_defs.h"
+#include "sdk/amx/amx_defs.h"
 //
 #include "node_inclusion.hpp"
 

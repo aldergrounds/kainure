@@ -1,4 +1,4 @@
-/* ============================================================================ *
+﻿/* ============================================================================ *
  * Kainure - Node.js Framework for SA-MP (San Andreas Multiplayer)              *
  * ================================= About ==================================== *
  *                                                                              *
@@ -32,10 +32,10 @@
 
 #include <atomic>
 //
-#include "sdk/amx_defs.h"
-#include "sdk/interceptor_manager.hpp"
-#include "sdk/callbacks.hpp"
-#include "sdk/platform.hpp"
+#include "sdk/amx/amx_defs.h"
+#include "sdk/hooks/interceptor_manager.hpp"
+#include "sdk/events/callbacks.hpp"
+#include "sdk/core/platform.hpp"
 //
 #include "natives.hpp"
 #include "native_hooks.hpp"

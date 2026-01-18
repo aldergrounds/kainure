@@ -70,12 +70,12 @@ class Encoding_Converter {
         std::string target_encoding_;
         bool is_windows_mode_ = true;
 
-#ifdef _WIN32
+#if defined(_WIN32)
         std::wstring UTF8_To_UTF16(const std::string& utf8_str) const;
         std::string UTF16_To_UTF8(const std::wstring& utf16_str) const;
         std::string UTF16_To_CodePage(const std::wstring& utf16_str, unsigned int codepage) const;
         std::wstring CodePage_To_UTF16(const std::string& str, unsigned int codepage) const;
-#else
+#elif defined(__linux__)
         std::string Iconv_Convert(const std::string& input, const std::string& from_encoding, const std::string& to_encoding) const;
 #endif
 };

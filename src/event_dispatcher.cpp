@@ -30,9 +30,9 @@
  *                                                                              *
  * ============================================================================ */
 
-#include "sdk/amx_defs.h"
-#include "sdk/interceptor_manager.hpp"
-#include "sdk/public_dispatcher.hpp"
+#include "sdk/amx/amx_defs.h"
+#include "sdk/hooks/interceptor_manager.hpp"
+#include "sdk/events/public_dispatcher.hpp"
 //
 #include "event_dispatcher.hpp"
 #include "runtime_manager.hpp"

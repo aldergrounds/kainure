@@ -35,8 +35,8 @@
 #include <cstdint>
 #include <memory>
 //
-#include "sdk/amx_defs.h"
-#include "sdk/amx_memory.hpp"
+#include "sdk/amx/amx_defs.h"
+#include "sdk/amx/amx_memory.hpp"
 //
 #include "node_inclusion.hpp"
 
