@@ -43,47 +43,29 @@ class Kainure_Core extends Event_Emitter {
         this.signatures = new Map();
     }
 
-    Public(event_name, callback) {
-        if (typeof event_name !== 'string' || typeof callback !== 'function')
-            throw new Error("Invalid arguments for Public. Expected (string, function).");
+    Public(event_name, ...args) {
+        const valid_sig_regex = /^[ifsb]+$/;
+        const callback = args.pop(); 
+        const signature = (args.length > 0 && typeof args[0] === 'string') ? args[0] : '';
 
-        const fn = callback.toString();
-        let signature = "";
-        const args_match = fn.match(/^[^(]*\(([^)]*)\)/);
+        if (typeof event_name !== 'string' || !event_name) 
+            throw new Error(`Event name must be a non-empty string.`);
+        
+        if (typeof callback !== 'function') 
+            throw new Error(`Public '${event_name}' requires a callback function.`);
 
-        if (args_match && args_match[1]) {
-            const params = args_match[1].split(',');
+        if (signature.length > 0 && !valid_sig_regex.test(signature))
+            throw new Error(`Public '${event_name}' contains invalid signature types. Allowed: [i, f, s, b]. Got: '${signature}'`);
 
-            for (const param of params) {
-                if (param.trim().length === 0)
-                    continue;
-                
-                const match = param.match(/=\s*['"]([a-zA-Z0-9]+)['"]/);
+        const param_count = callback.length;
 
-                if (match) {
-                    const type_char = match[1].toLowerCase();
+        if (param_count > 0 && signature.length === 0)
+            throw new Error(`Public '${event_name}' implies parameters (${param_count}) but no signature was provided.`);
 
-                    if (type_char === 'f')
-                        signature += 'f';
-                    else if (type_char === 's')
-                        signature += 's';
-                    else {
-                        console.warn(
-                            `[Kainure]:[Warning]: Unnecessary signature type '${type_char}' in Public '${event_name}'. ` +
-                            `Only 'f' (Float) and 's' (String) need to be specified. ` +
-                            `Integers and Booleans are handled automatically.`);
-                            
-                        signature += 'i';
-                    }
-                }
-                else
-                    signature += 'i';
-            }
-        }
+        if (signature.length !== param_count)
+            throw new Error(`Signature mismatch for '${event_name}'. ` + `Signature '${signature}' expects ${signature.length} args, but callback defines ${param_count}.`);
 
-        if (signature.length > 0)
-            this.signatures.set(event_name, signature);
-
+        this.signatures.set(event_name, signature);
         this.on(event_name, callback);
     }
 }
@@ -118,8 +100,8 @@ globalThis.Ref = (initial_value = 0) => ({
     }
 });
 
-globalThis.Public = (event_name, callback) => {
-    kainure.Public(event_name, callback);
+globalThis.Public = (event_name, ...args) => {
+    kainure.Public(event_name, ...args);
 };
 
 globalThis.Call_Public = new Proxy({}, {
@@ -160,7 +142,7 @@ globalThis.Include_Storage = (folder_name) => {
     
     if (safe_name !== folder_name) {
         console.warn(
-            `[Kainure]:[Warning]: Include name '${folder_name}' was sanitized to '${safe_name}'. ` +
+            `Include name '${folder_name}' was sanitized to '${safe_name}'. ` +
             `Use only letters, numbers, underscore and hyphen.`
         );
     }

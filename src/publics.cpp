@@ -129,7 +129,11 @@ bool Publics::Handler(const std::string& name, AMX* amx, cell& result) {
 
                     break;
                 }
-                default:
+                case Constants::SIGNATURE_TYPE_BOOL:
+                    js_args.push_back(v8::Boolean::New(isolate, param_value != 0));
+
+                    break;
+                default: // SIGNATURE_TYPE_INTEGER ;)
                     js_args.push_back(v8::Integer::New(isolate, param_value));
 
                     break;

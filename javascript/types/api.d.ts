@@ -38,7 +38,8 @@ declare function Ref<T = any>(initial_value?: T): {
     toString(): string;
 };
 
-declare function Public(event_name: string, callback: (...args: any[]) => any): void;
+declare function Public(event_name: string, callback: () => any): void;
+declare function Public(event_name: string, signature: string, callback: (...args: any[]) => any): void;
 
 declare const Call_Public: {
     [key: string]: any

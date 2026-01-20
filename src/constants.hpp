@@ -124,6 +124,7 @@ namespace Constants {
 
     // Parameter signature types
     constexpr char SIGNATURE_TYPE_INTEGER = 'i';
+    constexpr char SIGNATURE_TYPE_BOOL = 'b';
     constexpr char SIGNATURE_TYPE_FLOAT = 'f';
     constexpr char SIGNATURE_TYPE_STRING = 's';
 
