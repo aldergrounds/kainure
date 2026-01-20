@@ -47,7 +47,7 @@ void Logger::Log(Log_Level level, const char* format, ...) {
     
     va_end(args);
 
-    std::string message_content = Get_Level_Prefix(level) + " " + buffer;
+    std::string message_content = Get_Level_Prefix(level) + ": " + buffer;
     std::string full_message = "[Kainure]:" + message_content;
 
     Samp_SDK::Log("%s", full_message.c_str());
