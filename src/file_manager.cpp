@@ -173,7 +173,6 @@ void File_Manager::Create_Default_Config() {
         nlohmann::ordered_json typescript;
         typescript[Constants::CONFIG_KEY_TS_ENABLED] = false;
         typescript[Constants::CONFIG_KEY_TS_OUT_DIR] = Constants::DEFAULT_TS_OUT_DIR;
-        typescript[Constants::CONFIG_KEY_TS_AUTO_INSTALL] = true;
         j[Constants::CONFIG_KEY_TYPESCRIPT] = typescript;
 
         std::ofstream file(Constants::FILE_CONFIG);
@@ -197,7 +196,6 @@ void File_Manager::Create_Default_Config() {
 
         config_.use_typescript = false;
         config_.ts_output_dir = Constants::DEFAULT_TS_OUT_DIR;
-        config_.ts_auto_install = true;
     }
     catch (const nlohmann::json::exception& e) {
         Logger::Log(Log_Level::ERROR_s, "JSON error while creating default config: '%s'.", e.what());
@@ -224,7 +222,6 @@ void File_Manager::Set_Default_Config() {
 
     config_.use_typescript = false;
     config_.ts_output_dir = Constants::DEFAULT_TS_OUT_DIR;
-    config_.ts_auto_install = true;
 }
 
 bool File_Manager::Validate_Main_File(const std::string& path) const {
@@ -460,7 +457,6 @@ bool File_Manager::Load_Config() {
         
         Load_JSON_Field(typescript, Constants::CONFIG_KEY_TS_ENABLED, config_.use_typescript, false, typescript, save_needed);
         Load_JSON_Field(typescript, Constants::CONFIG_KEY_TS_OUT_DIR, config_.ts_output_dir, std::string(Constants::DEFAULT_TS_OUT_DIR), typescript, save_needed);
-        Load_JSON_Field(typescript, Constants::CONFIG_KEY_TS_AUTO_INSTALL, config_.ts_auto_install, true, typescript, save_needed);
 
         if (save_needed)
             Save_JSON_Config(j, Constants::FILE_CONFIG);

@@ -93,7 +93,6 @@ namespace Constants {
     constexpr const char* CONFIG_KEY_TYPESCRIPT = "typescript";
     constexpr const char* CONFIG_KEY_TS_ENABLED = "enabled";
     constexpr const char* CONFIG_KEY_TS_OUT_DIR = "output_dir";
-    constexpr const char* CONFIG_KEY_TS_AUTO_INSTALL = "auto_install";
 
     // Console methods
     constexpr const char* CONSOLE_LOG = "log";

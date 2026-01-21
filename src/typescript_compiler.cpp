@@ -121,7 +121,7 @@ bool TypeScript_Compiler::Check_TypeScript_Installation(v8::Isolate* isolate, v8
         bool is_installed = result.ToLocalChecked()->BooleanValue(isolate);
 
         if (is_installed)
-            Logger::Log(Log_Level::INFO, "TypeScript is already installed.");
+            Logger::Log(Log_Level::INFO, "TypeScript is installed.");
 
         return is_installed;
     }
@@ -130,107 +130,6 @@ bool TypeScript_Compiler::Check_TypeScript_Installation(v8::Isolate* isolate, v8
     }
     catch (const std::exception& e) {
         return (Logger::Log(Log_Level::ERROR_s, "Unexpected error checking TypeScript: '%s'.", e.what()), false);
-    }
-}
-
-bool TypeScript_Compiler::Install_TypeScript_Automatically(v8::Isolate* isolate, v8::Local<v8::Context> context) {
-    try {
-        if (!isolate)
-            throw V8_Exception("Isolate is null in 'Install_TypeScript_Automatically'.");
-
-        if (context.IsEmpty())
-            throw V8_Exception("Context is empty in 'Install_TypeScript_Automatically'.");
-
-        Logger::Log(Log_Level::INFO, "Installing TypeScript automatically...");
-        Logger::Log(Log_Level::INFO, "This may take a few moments, please wait...");
-
-        std::string install_code = R"(
-            (function() {
-                const { execSync } = require('child_process');
-                
-                try {
-                    console.log('[Kainure]:[Info]: Running )" + std::string(Constants::NPM_INSTALL_TYPESCRIPT) + R"(...');
-                    
-                    const output = execSync(')" + std::string(Constants::NPM_INSTALL_TYPESCRIPT) + R"(', {
-                        encoding: 'utf8',
-                        stdio: 'pipe',
-                        timeout: )" + std::to_string(Constants::NPM_INSTALL_TIMEOUT_MS) + R"(
-                    });
-                    
-                    try {
-                        require.resolve('typescript');
-
-                        return {
-                            success: true,
-                            message: 'TypeScript installed successfully.'
-                        };
-                    }
-                    catch(e) {
-                        return {
-                            success: false,
-                            message: 'TypeScript installation verification failed: ' + e.message
-                        };
-                    }
-                }
-                catch (error) {
-                    return { 
-                        success: false, 
-                        message: 'Failed to install TypeScript: ' + error.message 
-                    };
-                }
-            })()
-        )";
-
-        v8::TryCatch try_catch(isolate);
-        v8::Local<v8::String> source = v8::String::NewFromUtf8(isolate, install_code.c_str()).ToLocalChecked();
-        v8::ScriptOrigin origin(isolate, v8::String::NewFromUtf8(isolate, Constants::TS_INSTALL_SCRIPT_NAME).ToLocalChecked());
-
-        v8::MaybeLocal<v8::Script> script = v8::Script::Compile(context, source, &origin);
-
-        if (script.IsEmpty()) {
-            Error_Handler::Log_Exception(isolate, try_catch);
-
-            throw Script_Exception("Failed to compile TypeScript installer script.");
-        }
-
-        v8::MaybeLocal<v8::Value> result = script.ToLocalChecked()->Run(context);
-
-        if (result.IsEmpty()) {
-            Error_Handler::Log_Exception(isolate, try_catch);
-
-            throw Script_Exception("Failed to execute TypeScript installer.");
-        }
-
-        v8::Local<v8::Value> result_val = result.ToLocalChecked();
-
-        if (!result_val->IsObject())
-            throw TypeScript_Exception("Unexpected result from TypeScript installer.");
-
-        v8::Local<v8::Object> result_obj = result_val.As<v8::Object>();
-        v8::Local<v8::Value> success_val;
-        v8::Local<v8::Value> message_val;
-
-        bool success = false;
-
-        if (result_obj->Get(context, v8::String::NewFromUtf8(isolate, "success").ToLocalChecked()).ToLocal(&success_val))
-            success = success_val->BooleanValue(isolate);
-
-        if (result_obj->Get(context, v8::String::NewFromUtf8(isolate, "message").ToLocalChecked()).ToLocal(&message_val) && message_val->IsString()) {
-            v8::String::Utf8Value message_str(isolate, message_val);
-
-            if (success)
-                Logger::Log(Log_Level::INFO, "'%s'.", *message_str);
-            else
-                Logger::Log(Log_Level::ERROR_s, "'%s'.", *message_str);
-        }
-
-        return success;
-    }
-    catch (const Plugin_Exception& e) {
-        return (Logger::Log(Log_Level::ERROR_s, "'%s'.", e.what()), false);
-    }
-    catch (const std::exception& e) {
-        return (Logger::Log(Log_Level::ERROR_s, "Unexpected error installing TypeScript: '%s'.", e.what()), false);
     }
 }
 
@@ -314,7 +213,7 @@ bool TypeScript_Compiler::Execute_TypeScript_Compiler(v8::Isolate* isolate, v8::
                     parsed_config.options.outDir = forced_out_dir;
                     
                     if (!parsed_config.options.rootDir)
-                         parsed_config.options.rootDir = './';
+                        parsed_config.options.rootDir = './';
 
                     const program = ts.createProgram(parsed_config.fileNames, parsed_config.options);
                     const emit_result = program.emit();
@@ -426,16 +325,12 @@ bool TypeScript_Compiler::Compile_Project(v8::Isolate* isolate, v8::Local<v8::Co
         bool is_installed = Check_TypeScript_Installation(isolate, context);
 
         if (!is_installed) {
-            const auto& config = File_Manager::Instance().Get_Config();
-
-            if (config.ts_auto_install) {
-                Logger::Log(Log_Level::INFO, "TypeScript not found. Attempting automatic installation...");
-
-                if (!Install_TypeScript_Automatically(isolate, context))
-                    throw TypeScript_Exception("Failed to install TypeScript automatically. Please install it manually with: '" + std::string(Constants::NPM_INSTALL_TYPESCRIPT) + "'.");
-            }
-            else
-                throw TypeScript_Exception("TypeScript module not found! Please install TypeScript with: '" + std::string(Constants::NPM_INSTALL_TYPESCRIPT) + "' or enable automatic installation.");
+            Logger::Log(Log_Level::ERROR_s, "TypeScript module not found!");
+            Logger::Log(Log_Level::ERROR_s, "Please install TypeScript manually by running:");
+            Logger::Log(Log_Level::ERROR_s, "- 'npm install typescript'");
+            Logger::Log(Log_Level::ERROR_s, "The server cannot start without TypeScript when 'typescript.enabled' is enabled.");
+            
+            throw TypeScript_Exception("TypeScript module not found.");
         }
 
         return Execute_TypeScript_Compiler(isolate, context);

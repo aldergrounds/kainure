@@ -44,7 +44,6 @@ class File_Manager {
 
             bool use_typescript = false;
             std::string ts_output_dir;
-            bool ts_auto_install = true;
         };
 
         static File_Manager& Instance();
