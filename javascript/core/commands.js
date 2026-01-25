@@ -298,68 +298,32 @@ class Param_Parser {
     Parse_Array_Format(format, start_index) {
         let index = start_index + 1;
         
-        if (index >= format.length) {
+        if (index >= format.length || format[index] !== '<') {
             return {
                 success: false,
-                error: "Array format incomplete: expected '<' after 'a'"
-            };
-        }
-        
-        if (format[index] !== '<') {
-            return {
-                success: false,
-                error: `Array format invalid: expected '<' after 'a', got '${format[index]}'`
+                error: "Array format must be 'a<type>[size]'"
             };
         }
         
         index++;
-        
-        if (index >= format.length) {
-            return {
-                success: false,
-                error: "Array format incomplete: expected type after '<'"
-            };
-        }
 
         const array_type = format[index];
-        const valid_types = ['i', 'd', 'f', 's', 'z', 'b', 'h', 'c', 'r', 'u'];
-
-        if (!valid_types.includes(array_type)) {
-            return {
-                success: false,
-                error: `Array format invalid: type '${array_type}' is not valid. Valid types: ${valid_types.join(', ')}`
-            };
-        }
 
         index++;
-        
-        if (index >= format.length) {
-            return {
-                success: false,
-                error: "Array format incomplete: expected '>' after type"
-            };
-        }
         
         if (format[index] !== '>') {
             return {
                 success: false,
-                error: `Array format invalid: expected '>' after type, got '${format[index]}'`
+                error: "Array format must be 'a<type>[size]'"
             };
         }
         
         index++;
         
-        if (index >= format.length) {
-            return {
-                success: false,
-                error: "Array format incomplete: expected '[' after '>'"
-            };
-        }
-        
         if (format[index] !== '[') {
             return {
                 success: false,
-                error: `Array format invalid: expected '[' after '>', got '${format[index]}'`
+                error: "Array format must be 'a<type>[size]'"
             };
         }
         
@@ -367,57 +331,13 @@ class Param_Parser {
         
         let size_str = '';
 
-        while (index < format.length && format[index] !== ']') {
-            const char = format[index];
-            
-            if (char < '0' || char > '9') {
-                return {
-                    success: false,
-                    error: `Array format invalid: size must contain only digits, got '${char}'`
-                };
-            }
-            
-            size_str += char;
+        while (format[index] !== ']' && index < format.length) {
+            size_str += format[index];
             index++;
         }
         
-        if (index >= format.length) {
-            return {
-                success: false,
-                error: "Array format incomplete: expected ']' to close array size"
-            };
-        }
-        
-        if (size_str.length === 0) {
-            return {
-                success: false,
-                error: "Array format invalid: size cannot be empty"
-            };
-        }
-        
         const array_size = parseInt(size_str, 10);
-        
-        if (isNaN(array_size)) {
-            return {
-                success: false,
-                error: `Array format invalid: size '${size_str}' is not a valid number`
-            };
-        }
-        
-        if (array_size <= 0) {
-            return {
-                success: false,
-                error: `Array format invalid: size must be positive, got ${array_size}`
-            };
-        }
-        
-        if (array_size > 1000) {
-            return {
-                success: false,
-                error: `Array format invalid: size too large (max 1000), got ${array_size}`
-            };
-        }
-        
+
         index++;
         
         return {
@@ -432,16 +352,9 @@ class Param_Parser {
         let index = start_index + 1;
         let value_str = '';
         
-        while (index < format.length && format[index] !== ')') {
+        while (format[index] !== ')' && index < format.length) {
             value_str += format[index];
             index++;
-        }
-        
-        if (index >= format.length) {
-            return {
-                value: undefined,
-                next_index: start_index
-            };
         }
         
         index++;
