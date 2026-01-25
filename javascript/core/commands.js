@@ -33,6 +33,7 @@
 class Command_Processor {
     constructor() {
         this.command_map = new Map();
+        this.external_commands = new Set();
         this.has_on_command_received = false;
         this.has_on_command_performed = false;
     }
@@ -61,6 +62,26 @@ class Command_Processor {
             console.log(`Command Processor | Register: Command '${normalized_name}' is being overwritten.`);
 
         this.command_map.set(normalized_name, callback);
+    }
+
+    Register_External(...command_names) {
+        for (const name of command_names) {
+            if (typeof name !== 'string' || name.length === 0) {
+                console.log("Command Processor | Register_External: Command name must be a non-empty string.");
+
+                continue;
+            }
+
+            const normalized_name = name.startsWith('/') ? name.substring(1).toLowerCase() : name.toLowerCase();
+
+            if (this.command_map.has(normalized_name)) {
+                console.log(`Command Processor | Register_External: Command '${normalized_name}' is already registered in JS. External registration ignored.`);
+
+                continue;
+            }
+
+            this.external_commands.add(normalized_name);
+        }
     }
 
     Aliases(original_command_name, ...alias_names) {
@@ -108,6 +129,10 @@ class Command_Processor {
         return false;
     }
 
+    Is_External_Command(command_name) {
+        return this.external_commands.has(command_name.toLowerCase());
+    }
+
     Process(playerid, cmdtext) {
         if (!cmdtext || !cmdtext.startsWith('/'))
             return 1;
@@ -119,12 +144,31 @@ class Command_Processor {
         const command_name = parts[0].toLowerCase();
         
         const command_exists = this.command_map.has(command_name);
+        const is_external = this.Is_External_Command(command_name);
 
         if (this.has_on_command_received) {
             const received_result = Kainure_Emit_Event('OnPlayerCommandReceived', playerid, cmdtext);
             
             if (received_result === 0)
                 return 0;
+        }
+
+        if (!command_exists) {
+            if (is_external) {
+                if (this.has_on_command_performed)
+                    Kainure_Emit_Event('OnPlayerCommandPerformed', playerid, cmdtext, 1);
+
+                return 0;
+            }
+
+            if (this.has_on_command_performed) {
+                const performed_result = Kainure_Emit_Event('OnPlayerCommandPerformed', playerid, cmdtext, 0);
+                
+                if (performed_result !== undefined)
+                    return performed_result;
+            }
+
+            return 1;
         }
 
         const params = parts.slice(1).join(' ');
@@ -254,32 +298,68 @@ class Param_Parser {
     Parse_Array_Format(format, start_index) {
         let index = start_index + 1;
         
-        if (index >= format.length || format[index] !== '<') {
+        if (index >= format.length) {
             return {
                 success: false,
-                error: "Array format must be 'a<type>[size]'"
+                error: "Array format incomplete: expected '<' after 'a'"
+            };
+        }
+        
+        if (format[index] !== '<') {
+            return {
+                success: false,
+                error: `Array format invalid: expected '<' after 'a', got '${format[index]}'`
             };
         }
         
         index++;
+        
+        if (index >= format.length) {
+            return {
+                success: false,
+                error: "Array format incomplete: expected type after '<'"
+            };
+        }
 
         const array_type = format[index];
+        const valid_types = ['i', 'd', 'f', 's', 'z', 'b', 'h', 'c', 'r', 'u'];
+
+        if (!valid_types.includes(array_type)) {
+            return {
+                success: false,
+                error: `Array format invalid: type '${array_type}' is not valid. Valid types: ${valid_types.join(', ')}`
+            };
+        }
 
         index++;
+        
+        if (index >= format.length) {
+            return {
+                success: false,
+                error: "Array format incomplete: expected '>' after type"
+            };
+        }
         
         if (format[index] !== '>') {
             return {
                 success: false,
-                error: "Array format must be 'a<type>[size]'"
+                error: `Array format invalid: expected '>' after type, got '${format[index]}'`
             };
         }
         
         index++;
         
+        if (index >= format.length) {
+            return {
+                success: false,
+                error: "Array format incomplete: expected '[' after '>'"
+            };
+        }
+        
         if (format[index] !== '[') {
             return {
                 success: false,
-                error: "Array format must be 'a<type>[size]'"
+                error: `Array format invalid: expected '[' after '>', got '${format[index]}'`
             };
         }
         
@@ -287,13 +367,57 @@ class Param_Parser {
         
         let size_str = '';
 
-        while (format[index] !== ']' && index < format.length) {
-            size_str += format[index];
+        while (index < format.length && format[index] !== ']') {
+            const char = format[index];
+            
+            if (char < '0' || char > '9') {
+                return {
+                    success: false,
+                    error: `Array format invalid: size must contain only digits, got '${char}'`
+                };
+            }
+            
+            size_str += char;
             index++;
         }
         
+        if (index >= format.length) {
+            return {
+                success: false,
+                error: "Array format incomplete: expected ']' to close array size"
+            };
+        }
+        
+        if (size_str.length === 0) {
+            return {
+                success: false,
+                error: "Array format invalid: size cannot be empty"
+            };
+        }
+        
         const array_size = parseInt(size_str, 10);
-
+        
+        if (isNaN(array_size)) {
+            return {
+                success: false,
+                error: `Array format invalid: size '${size_str}' is not a valid number`
+            };
+        }
+        
+        if (array_size <= 0) {
+            return {
+                success: false,
+                error: `Array format invalid: size must be positive, got ${array_size}`
+            };
+        }
+        
+        if (array_size > 1000) {
+            return {
+                success: false,
+                error: `Array format invalid: size too large (max 1000), got ${array_size}`
+            };
+        }
+        
         index++;
         
         return {
@@ -308,9 +432,16 @@ class Param_Parser {
         let index = start_index + 1;
         let value_str = '';
         
-        while (format[index] !== ')' && index < format.length) {
+        while (index < format.length && format[index] !== ')') {
             value_str += format[index];
             index++;
+        }
+        
+        if (index >= format.length) {
+            return {
+                value: undefined,
+                next_index: start_index
+            };
         }
         
         index++;
@@ -538,10 +669,6 @@ class Param_Parser {
 const command_processor = new Command_Processor();
 const param_parser = new Param_Parser();
 
-function Command_Params(params, format, ...variables) {
-    return param_parser.Parse(params, format, variables);
-}
-
 globalThis.Command = (name, callback) => {
     command_processor.Register(name, callback);
 };
@@ -554,9 +681,14 @@ globalThis.Call_Command = (name, params, playerid) => {
     return command_processor.Call(name, params, playerid);
 };
 
-globalThis.Command_Params = Command_Params;
+globalThis.Command_Params = (params, format, ...variables) => {
+    return param_parser.Parse(params, format, variables);
+}
 
-Public('OnPlayerCommandText', (playerid, cmdtext = "s") => {
+globalThis.External_Commands = (...command_names) => {
+    command_processor.Register_External(...command_names);
+};
+
+Public('OnPlayerCommandText', 'is', (playerid, cmdtext) => {
     return command_processor.Process(playerid, cmdtext);
-
 });
