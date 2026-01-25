@@ -119,9 +119,6 @@ class Command_Processor {
         const command_name = parts[0].toLowerCase();
         
         const command_exists = this.command_map.has(command_name);
-        
-        if (!command_exists)
-            return 0;
 
         if (this.has_on_command_received) {
             const received_result = Kainure_Emit_Event('OnPlayerCommandReceived', playerid, cmdtext);
@@ -561,4 +558,5 @@ globalThis.Command_Params = Command_Params;
 
 Public('OnPlayerCommandText', (playerid, cmdtext = "s") => {
     return command_processor.Process(playerid, cmdtext);
+
 });
