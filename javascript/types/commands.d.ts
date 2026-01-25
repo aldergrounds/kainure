@@ -34,3 +34,4 @@ declare function Command(name: string, callback: (playerid: number, params: stri
 declare function Alias_Command(original_name: string, ...aliases: string[]): void;
 declare function Call_Command(name: string, params: string, playerid: number): boolean;
 declare function Command_Params(params: string, format: string, ...variables: any[]): boolean;
+declare function External_Commands(...command_names: string[]): void;
