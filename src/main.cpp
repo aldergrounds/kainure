@@ -123,9 +123,9 @@ Plugin_Public(OnGameModeInit) {
         Event_Dispatcher::Instance().Generate_Native_Bindings();
         Event_Dispatcher::Instance().Dispatch_Event(Constants::EVENT_GAMEMODE_INIT);
 
-        return PLUGIN_PUBLIC_CONTINUE;
+        return PUBLIC_CONTINUE;
     }
     catch (const std::exception& e) {
-        return (Logger::Log(Log_Level::ERROR_s, "Exception in OnGameModeInit: '%s'.", e.what()), PLUGIN_PUBLIC_CONTINUE);
+        return (Logger::Log(Log_Level::ERROR_s, "Exception in OnGameModeInit: '%s'.", e.what()), PUBLIC_CONTINUE);
     }
 }

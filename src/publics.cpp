@@ -144,11 +144,11 @@ bool Publics::Handler(const std::string& name, AMX* amx, cell& result) {
         result = return_value;
 
         if (name == Constants::EVENT_PLAYER_COMMAND) {
-            if (return_value == PLUGIN_PUBLIC_CONTINUE)
+            if (return_value == PUBLIC_CONTINUE)
                 return false;
         }
         else {
-            if (return_value == PLUGIN_PUBLIC_STOP)
+            if (return_value == PUBLIC_STOP)
                 return false;
         }
 

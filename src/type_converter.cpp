@@ -36,7 +36,6 @@
 #include <algorithm>
 //
 #include "sdk/amx/amx_api.hpp"
-#include "sdk/events/public_dispatcher.hpp"
 #include "sdk/core/platform.hpp"
 //
 #include "encoding_converter.hpp"
@@ -272,13 +271,13 @@ void Type_Converter::Apply_Updates(v8::Isolate* isolate, v8::Local<v8::Context> 
 
 cell Type_Converter::To_Return_Code(v8::Isolate* isolate, v8::Local<v8::Context> context, v8::Local<v8::Value> js_value) {
     if (js_value.IsEmpty() || js_value->IsUndefined() || js_value->IsNull())
-        return PLUGIN_PUBLIC_CONTINUE;
+        return PUBLIC_CONTINUE;
     
     if (js_value->IsBoolean())
-        return js_value->BooleanValue(isolate) ? PLUGIN_PUBLIC_CONTINUE : PLUGIN_PUBLIC_STOP;
+        return js_value->BooleanValue(isolate) ? PUBLIC_CONTINUE : PUBLIC_STOP;
     
     if (js_value->IsInt32())
         return js_value->Int32Value(context).ToChecked();
     
-    return PLUGIN_PUBLIC_CONTINUE;
+    return PUBLIC_CONTINUE;
 }

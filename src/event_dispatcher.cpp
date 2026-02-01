@@ -32,7 +32,6 @@
 
 #include "sdk/amx/amx_defs.h"
 #include "sdk/hooks/interceptor_manager.hpp"
-#include "sdk/events/public_dispatcher.hpp"
 //
 #include "event_dispatcher.hpp"
 #include "runtime_manager.hpp"
@@ -132,7 +131,7 @@ cell Event_Dispatcher::Dispatch_Event(const std::string& event_name, AMX* amx, c
     auto& runtime = Runtime_Manager::Instance();
 
     if (!runtime.Is_Runtime_Ready())
-        return PLUGIN_PUBLIC_CONTINUE;
+        return PUBLIC_CONTINUE;
 
     v8::Isolate* isolate = runtime.Get_Isolate();
     
@@ -143,7 +142,7 @@ cell Event_Dispatcher::Dispatch_Event(const std::string& event_name, AMX* amx, c
     v8::Local<v8::Context> context = runtime.Get_Context();
 
     if (context.IsEmpty())
-        return PLUGIN_PUBLIC_CONTINUE;
+        return PUBLIC_CONTINUE;
     
     v8::Context::Scope context_scope(context);
     v8::TryCatch try_catch(isolate);
@@ -151,7 +150,7 @@ cell Event_Dispatcher::Dispatch_Event(const std::string& event_name, AMX* amx, c
     v8::Local<v8::Function> emit_func = Get_Emit_Function(isolate, context);
 
     if (emit_func.IsEmpty())
-        return PLUGIN_PUBLIC_CONTINUE;
+        return PUBLIC_CONTINUE;
 
     std::vector<v8::Local<v8::Value>> call_args;
     call_args.reserve(args.size() + 1);
@@ -162,12 +161,12 @@ cell Event_Dispatcher::Dispatch_Event(const std::string& event_name, AMX* amx, c
     v8::MaybeLocal<v8::Value> result_maybe = emit_func->Call(context, global, call_args.size(), call_args.data());
 
     if (try_catch.HasCaught())
-        return (Error_Handler::Log_Exception(isolate, try_catch), PLUGIN_PUBLIC_CONTINUE);
+        return (Error_Handler::Log_Exception(isolate, try_catch), PUBLIC_CONTINUE);
 
     v8::Local<v8::Value> result_val;
 
     if (!result_maybe.ToLocal(&result_val))
-        return PLUGIN_PUBLIC_CONTINUE;
+        return PUBLIC_CONTINUE;
 
     return Type_Converter::To_Return_Code(isolate, context, result_val);
 }
