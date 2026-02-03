@@ -51,6 +51,7 @@
       - [`Command_Params`](#command_params)
       - [`Alias_Command`](#alias_command)
       - [`Call_Command`](#call_command)
+      - [`External_Commands`](#external_commands)
     - [Constantes y Tipos](#constantes-y-tipos)
       - [`samp_constants.js`](#samp_constantsjs)
       - [Directorio `types/`](#directorio-types)
@@ -104,28 +105,34 @@ Después de la descarga, necesita organizar los archivos en la raíz de su servi
 
 ### 3. Configuración (config.json)
 
-Dentro de la carpeta `Kainure/`, encontrará el archivo `config.json`. Si no existe, el plugin lo creará automáticamente la primera vez que se ejecute. Este archivo controla el comportamiento del framework.
+Dentro de la carpeta `Kainure/`, encontrarás el archivo `config.json`. Si no existe, el plugin lo creará automáticamente la primera vez que se ejecute. Este archivo controla el comportamiento del framework.
 
 ```json
 {
     "configs": {
-        "main_file": "./main.js"
+        "main_file": "./main.js",
+        "encoding": {
+            "enabled": false,
+            "target": 65001
+        }
     },
     "typescript": {
         "enabled": false,
-        "output_dir": "./dist",
-        "auto_install": true
+        "output_dir": "./dist"
     }
 }
 ```
 
 - **`main_file`**: Este es el punto de entrada de su gamemode. Kainure comenzará a ejecutar el código a partir de este archivo. Por defecto, puede ser `.js` o `.ts` (si TypeScript está activado). La ruta `./` representa la raíz de su gamemode.
 
+- **`encoding.enabled`**: Define si Kainure debe convertir las strings entre el formato UTF-8 (estándar de JavaScript) y la codificación de su servidor. Si se establece en `false`, el framework utilizará el estándar `65001` (UTF-8).
+
+- **`encoding.target`**: Define la codificación objetivo.
+   - **Windows**: Es obligatorio el uso del **número de la Codepage** (ej: `1252`).
+   - **Linux**: Es obligatorio el uso del **nombre de la Codepage** (ej: `WINDOWS-1252`).
+
 - **`typescript.enabled`**: Cambie a `true` si desea escribir su código en TypeScript. Kainure transpilará automáticamente los archivos `.ts` a `.js`.
-
-- **`typescript.output_dir`**: Define el directorio donde los archivos JavaScript transpilados serán guardados.
-
-- **`typescript.auto_install`**: Si es `true`, Kainure verificará si el compilador de TypeScript (`typescript`) está presente en el `node_modules` de su proyecto. En caso de que no esté, lo instalará automáticamente, simplificando la configuración inicial.
+- **`typescript.output_dir`**: Define el directorio donde se guardarán los archivos JavaScript transpilados.
 
 ## API y Funcionalidades
 
@@ -138,6 +145,7 @@ Kainure fue diseñado para ser intuitivo. Usted **no necesita importar o hacer `
 Este módulo contiene las funciones esenciales para interactuar con el servidor SA-MP.
 
 #### `Float`
+
 Garantiza que un número sea tratado como `float`, incluso si puede ser interpretado como un entero. Esto es crucial para nativas de SA-MP que exigen floats.
 
 **¿Cuándo usar?** Use `Float()` solo cuando el valor es dinámico y desconocido en tiempo de compilación (por ejemplo, viniendo de un comando o de otra función). Su uso manual es relevante solamente al pasar valores a `Native.` y `Call_Public.`.
@@ -158,6 +166,7 @@ Command('sethealth', (playerid, params) => {
 ```
 
 #### `Ref`
+
 Marca una variable para recibir un valor por referencia de una función nativa.
 
 **¿Cómo funciona?**
@@ -184,32 +193,40 @@ Command('health', (playerid) => {
 ```
 
 #### `Public`
-Declara un callback (public) de SA-MP, permitiendo que su código reaccione a eventos del juego.
 
-**Firmas de Parámetros:**
-Es **crucial** proporcionar una firma para parámetros que son `string` o `float` para que Kainure pueda convertir los tipos correctamente.
-- **`string`**: `(param = "s")`
-- **`float`**: `(param = "f")`
-- `int` y `bool` no necesitan firma.
+Declara una callback (public) de SA-MP, permitiendo que su código reaccione a eventos del juego.
+
+**Firmas de Parámetros:** Para que Kainure convierta los tipos correctamente, es obligatorio proporcionar una firma como segundo parámetro en caso de que la callback tenga argumentos.
+- **`i`**: Entero
+- **`f`**: Float
+- **`s`**: String
+- **`b`**: Booleano
+
+**Validaciones y Errores:** Kainure impide la ejecución si:
+1. La función posee parámetros, pero no se proporciona ninguna firma.
+2. La cantidad de caracteres en la firma es diferente a la cantidad de parámetros definidos en la función.
+3. La firma contiene tipos inválidos (diferentes de `i, f, s, b`).
 
 **Valores de Retorno:**
-- `return 1;` o `return true;`: Permite que el callback continúe ejecutándose en otros scripts (si los hay). Este es el comportamiento predeterminado si no se devuelve nada.
-- `return 0;` o `return false;`: Impide la ejecución del callback en otros scripts.
+- `return 1;` o `return true;`: Permite que la callback continúe ejecutándose en otros scripts (si los hay). Este es el comportamiento por defecto si no se devuelve nada.
+- `return 0;` o `return false;`: Impide la ejecución de la callback en otros scripts.
 
 ```javascript
-// Public simple
-Public('OnPlayerSpawn', (playerid) => {
-    Native.SendClientMessage(playerid, -1, "Has aparecido en el servidor.");
+// Public simple sin parámetros
+Public('OnGameModeInit', () => {
+    // Lógica
     return true;
 });
 
-// Public con firma de string y float
-Public('PublicCustom', (text = "s", value = "f") => {
-    console.log(`Texto: ${text}, Valor: ${value}`);
+// Public con firma
+Public('OnPlayerText', 'is', (playerid, text) => {
+    // Lógica
+    return true;
 });
 ```
 
 #### `Call_Public`
+
 Llama a cualquier public, ya sea del propio gamemode, de un filterscript, o una public personalizada creada con `Public()`.
 
 ```javascript
@@ -220,6 +237,7 @@ Command('callpublic', (playerid) => {
 ```
 
 #### `Native`
+
 Invoca una función nativa de SA-MP o de cualquier plugin cargado. Simplemente añada el prefijo `Native.` al nombre de la función.
 
 ```javascript
@@ -229,6 +247,7 @@ Public('OnPlayerConnect', (playerid) => {
 ```
 
 #### `Native_Hook`
+
 Intercepta la llamada de una función nativa, permitiendo modificar su comportamiento o añadir lógica extra.
 
 **Orden de Ejecución:** Los hooks siguen un patrón **LIFO (Last-In, First-Out)**. El último hook creado para una nativa será el primero en ejecutarse.
@@ -247,6 +266,7 @@ Native_Hook('SetPlayerHealth', (playerid, health) => {
 ```
 
 #### `Include_Storage`
+
 Proporciona una ruta de directorio única y segura para que `includes` (bibliotecas) puedan almacenar sus propios datos, evitando conflictos. La carpeta siempre será creada dentro de `Kainure/includes_storage/`.
 
 ```javascript
@@ -259,6 +279,7 @@ const my_data_path = Include_Storage("MyInclude");
 Este módulo ofrece un sistema completo para creación y gestión de comandos.
 
 #### `Command`
+
 Registra un nuevo comando en el servidor. La función de callback puede recibir hasta dos parámetros: `playerid` y `params`. Ambos son opcionales.
 
 ```javascript
@@ -272,6 +293,7 @@ Command('pos', (playerid) => {
 ```
 
 #### `Command_Params`
+
 Procesa y extrae parámetros de una cadena de comando, de forma similar a `sscanf`.
 
 **¿Cómo funciona?**
@@ -293,6 +315,7 @@ Command('givemoney', (playerid, params) => {
 ```
 
 #### `Alias_Command`
+
 Crea uno o más alias (nombres alternativos) para un comando existente.
 
 ```javascript
@@ -305,6 +328,7 @@ Alias_Command('showlife', 'life', 'hp', 'health');
 Ahora, `/showlife`, `/life`, `/hp` y `/health` ejecutarán el mismo código.
 
 #### `Call_Command`
+
 Llama a un comando programáticamente a partir de su código.
 
 ```javascript
@@ -315,12 +339,25 @@ Call_Command("givemoney", "1 500", 0 /* o playerid */);
 Call_Command("announcement", "¡El servidor se reiniciará en 1 minuto!");
 ```
 
+#### `External_Commands`
+
+Esta función se utiliza para registrar comandos que **no fueron creados en el entorno Kainure**, pero que existen en otros scripts.
+
+Al registrar un comando como externo, Kainure garantiza que las callbacks globales de comandos (`OnPlayerCommandReceived` y `OnPlayerCommandPerformed`) se activen correctamente para estos comandos, integrándolos al flujo del framework.
+
+```javascript
+// Registrando comandos que existen en un filterscript
+External_Commands("login", "register", "help");
+```
+
 ### Constantes y Tipos
 
 #### `samp_constants.js`
+
 Este archivo contiene todas las constantes y definiciones estándar de SA-MP (como `MAX_PLAYERS`, `WEAPON_DEAGLE`, etc.). Se carga globalmente, así que puede usar estas constantes directamente en su código sin necesidad de declararlas.
 
 #### Directorio `types/`
+
 Este directorio almacena los archivos de definición de tipos (`.d.ts`) para toda la API de Kainure. Si está usando TypeScript, estos archivos proporcionarán autocompletado, verificación de tipos y una experiencia de desarrollo mucho más rica y segura en su editor de código.
 
 ## Gamemode Oficial

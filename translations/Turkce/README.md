@@ -51,6 +51,7 @@
       - [`Command_Params`](#command_params)
       - [`Alias_Command`](#alias_command)
       - [`Call_Command`](#call_command)
+      - [`External_Commands`](#external_commands)
     - [Sabitler ve Türler](#sabitler-ve-türler)
       - [`samp_constants.js`](#samp_constantsjs)
       - [`types/` Dizini](#types-dizini)
@@ -104,28 +105,34 @@ Eklenti ve gerekli tüm dosyaları içeren Kainure'nin en son sürümü, projeni
 
 ### 3. Yapılandırma (config.json)
 
-Klasör `Kainure/` içinde `config.json` dosyasını bulacaksınız. Eğer mevcut değilse, eklenti ilk çalıştırıldığında bunu otomatik olarak oluşturacaktır. Bu dosya framework'ün davranışını kontrol eder.
+`Kainure/` klasörünün içinde `config.json` dosyasını bulacaksınız. Eğer mevcut değilse, eklenti ilk kez çalıştırıldığında onu otomatik olarak oluşturacaktır. Bu dosya, framework'ün davranışını kontrol eder.
 
 ```json
 {
     "configs": {
-        "main_file": "./main.js"
+        "main_file": "./main.js",
+        "encoding": {
+            "enabled": false,
+            "target": 65001
+        }
     },
     "typescript": {
         "enabled": false,
-        "output_dir": "./dist",
-        "auto_install": true
+        "output_dir": "./dist"
     }
 }
 ```
 
-- **`main_file`**: Bu, oyun modunuzun giriş noktasıdır. Kainure kodu bu dosyadan çalıştırmaya başlayacaktır. Varsayılan olarak `.js` veya `.ts` (TypeScript etkinse) olabilir. Yol `./` oyun modunuzun kökünü temsil eder.
+- **`main_file`**: Bu, gamemode'unuzun giriş noktasıdır. Kainure, kodu bu dosyadan itibaren yürütmeye başlayacaktır. Varsayılan olarak, `.js` veya `.ts` (eğer TypeScript etkinse) olabilir. `./` yolu gamemode'unuzun kök dizinini temsil eder.
 
-- **`typescript.enabled`**: Kodunuzu TypeScript ile yazmak istiyorsanız `true` olarak değiştirin. Kainure otomatik olarak `.ts` dosyalarını `.js`'ye dönüştürecektir (transpile).
+- **`encoding.enabled`**: Kainure'un dizeleri UTF-8 formatı (JavaScript varsayılanı) ile sunucunuzun kodlaması arasında dönüştürüp dönüştürmeyeceğini belirler. `false` olarak ayarlanırsa, framework varsayılan `65001` (UTF-8) değerini kullanacaktır.
 
-- **`typescript.output_dir`**: Dönüştürülen (transpiled) JavaScript dosyalarının kaydedileceği dizini tanımlar.
+- **`encoding.target`**: Hedef kodlamayı belirler.
+   - **Windows**: **Codepage numarasının** kullanılması zorunludur (örn: `1252`).
+   - **Linux**: **Codepage adının** kullanılması zorunludur (örn: `WINDOWS-1252`).
 
-- **`typescript.auto_install`**: Eğer `true` ise, Kainure projenizin `node_modules` içinde TypeScript derleyicisinin (`typescript`) mevcut olup olmadığını kontrol eder. Eğer yoksa, başlangıç yapılandırmasını basitleştirmek için otomatik olarak yükler.
+- **`typescript.enabled`**: Kodunuzu TypeScript dilinde yazmak istiyorsanız `true` olarak değiştirin. Kainure, `.ts` dosyalarını otomatik olarak `.js` dosyalarına dönüştürecektir (transpile).
+- **`typescript.output_dir`**: Dönüştürülen JavaScript dosyalarının kaydedileceği dizini belirler.
 
 ## API ve Özellikler
 
@@ -138,6 +145,7 @@ Kainure sezgisel olacak şekilde tasarlandı. Dosyalarınızda ana modüllerin (
 Bu modül, SA-MP sunucusuyla etkileşim kurmak için temel işlevleri içerir.
 
 #### `Float`
+
 Bir sayının, tamsayı olarak yorumlanabilse bile `float` olarak ele alınmasını sağlar. Bu, float gerektiren SA-MP native'leri için çok önemlidir.
 
 **Ne zaman kullanılır?** Sadece değer dinamikse ve derleme zamanında bilinmiyorsa (örneğin bir komuttan veya başka bir işlevden geliyorsa) `Float()` kullanın. Manuel kullanımı yalnızca `Native.` ve `Call_Public.`'e değer geçirirken geçerlidir.
@@ -158,6 +166,7 @@ Command('sethealth', (playerid, params) => {
 ```
 
 #### `Ref`
+
 Bir değişkeni, bir native fonksiyonundan referans yoluyla değer alacak şekilde işaretler.
 
 **Nasıl çalışır?**
@@ -184,32 +193,40 @@ Command('health', (playerid) => {
 ```
 
 #### `Public`
-Kodunuzun oyun olaylarına tepki vermesini sağlayan bir SA-MP callback (public) bildirir.
 
-**Parametre İmzaları:**
-Kainure'nin tipleri doğru bir şekilde dönüştürebilmesi için `string` veya `float` olan parametreler için bir imza sağlamak **kritiktir**.
-- **`string`**: `(param = "s")`
-- **`float`**: `(param = "f")`
-- `int` ve `bool` imza gerektirmez.
+Bir SA-MP callback'ini (public) bildirerek kodunuzun oyun olaylarına tepki vermesini sağlar.
 
-**Dönüş Değerleri:**
-- `return 1;` veya `return true;`: Callback'in diğer scriptlerde (varsa) çalışmaya devam etmesine izin verir. Hiçbir şey döndürülmezse varsayılan davranış budur.
-- `return 0;` veya `return false;`: Callback'in diğer scriptlerde çalışmasını engeller.
+**Parametre İmzaları:** Kainure'un türleri doğru şekilde dönüştürebilmesi için, eğer callback argümanlara sahipse, ikinci parametre olarak bir imza sağlanması zorunludur.
+- **`i`**: Tam Sayı (Integer)
+- **`f`**: Float
+- **`s`**: String
+- **`b`**: Boole (Boolean)
+
+**Doğrulamalar ve Hatalar:** Kainure şu durumlarda yürütmeyi engeller:
+1. Fonksiyon parametrelere sahipse ancak hiçbir imza sağlanmamışsa.
+2. İmzadaki karakter sayısı, fonksiyonda tanımlanan parametre sayısından farklıysa.
+3. İmza geçersiz türler içeriyorsa (`i, f, s, b` dışında).
+
+**Geri Dönüş Değerleri:**
+- `return 1;` veya `return true;`: Callback'in diğer scriptlerde (varsa) yürütülmeye devam etmesine izin verir. Hiçbir şey döndürülmezse varsayılan davranış budur.
+- `return 0;` veya `return false;`: Callback'in diğer scriptlerde yürütülmesini engeller.
 
 ```javascript
-// Basit Public
-Public('OnPlayerSpawn', (playerid) => {
-    Native.SendClientMessage(playerid, -1, "Sunucuda doğdunuz.");
+// Parametresiz basit Public
+Public('OnGameModeInit', () => {
+    // Mantık
     return true;
 });
 
-// String ve float imzalı Public
-Public('PublicCustom', (text = "s", value = "f") => {
-    console.log(`Metin: ${text}, Değer: ${value}`);
+// İmzalı Public
+Public('OnPlayerText', 'is', (playerid, text) => {
+    // Mantık
+    return true;
 });
 ```
 
 #### `Call_Public`
+
 İster oyun modunun kendisinden, ister bir filterscript'ten veya `Public()` ile oluşturulmuş özel bir public olsun, herhangi bir public'i çağırır.
 
 ```javascript
@@ -220,6 +237,7 @@ Command('callpublic', (playerid) => {
 ```
 
 #### `Native`
+
 SA-MP'nin veya yüklenen herhangi bir eklentinin native fonksiyonunu çağırır. Fonksiyon adının önüne sadece `Native.` ekleyin.
 
 ```javascript
@@ -229,6 +247,7 @@ Public('OnPlayerConnect', (playerid) => {
 ```
 
 #### `Native_Hook`
+
 Bir native fonksiyon çağrısını yakalar, davranışını değiştirmeye veya ekstra mantık eklemeye izin verir.
 
 **Yürütme Sırası:** Hook'lar **LIFO (Son Giren, İlk Çıkar)** modelini izler. Bir native için oluşturulan son hook, ilk çalıştırılacak olandır.
@@ -247,6 +266,7 @@ Native_Hook('SetPlayerHealth', (playerid, health) => {
 ```
 
 #### `Include_Storage`
+
 Include'ların (kütüphanelerin) çakışmaları önleyerek kendi verilerini saklayabilmeleri için benzersiz ve güvenli bir dizin yolu sağlar. Klasör her zaman `Kainure/includes_storage/` içinde oluşturulacaktır.
 
 ```javascript
@@ -259,6 +279,7 @@ const my_data_path = Include_Storage("MyInclude");
 Bu modül, komut oluşturma ve yönetimi için eksiksiz bir sistem sunar.
 
 #### `Command`
+
 Sunucuya yeni bir komut kaydeder. Callback fonksiyonu iki parametreye kadar alabilir: `playerid` ve `params`. Her ikisi de isteğe bağlıdır.
 
 ```javascript
@@ -272,6 +293,7 @@ Command('pos', (playerid) => {
 ```
 
 #### `Command_Params`
+
 Bir komut dizesinden parametreleri `sscanf`'e benzer bir şekilde işler ve ayıklar.
 
 **Nasıl çalışır?**
@@ -293,6 +315,7 @@ Command('givemoney', (playerid, params) => {
 ```
 
 #### `Alias_Command`
+
 Mevcut bir komut için bir veya daha fazla takma ad (alternatif isimler) oluşturur.
 
 ```javascript
@@ -305,6 +328,7 @@ Alias_Command('showlife', 'life', 'hp', 'health');
 Şimdi, `/showlife`, `/life`, `/hp` ve `/health` aynı kodu çalıştıracaktır.
 
 #### `Call_Command`
+
 Kodunuzdan programatik olarak bir komut çağırır.
 
 ```javascript
@@ -315,12 +339,25 @@ Call_Command("givemoney", "1 500", 0 /* veya playerid */);
 Call_Command("announcement", "Sunucu 1 dakika içinde yeniden başlatılacak!");
 ```
 
+#### `External_Commands`
+
+Bu fonksiyon, **Kainure ortamında oluşturulmamış** ancak diğer scriptlerde mevcut olan komutları kaydetmek için kullanılır.
+
+Bir komutu harici olarak kaydettiğinizde, Kainure bu komutlar için global komut callback'lerinin (`OnPlayerCommandReceived` ve `OnPlayerCommandPerformed`) doğru şekilde tetiklenmesini sağlayarak onları framework akışına entegre eder.
+
+```javascript
+// Bir filterscript içinde var olan komutları kaydetme
+External_Commands("login", "register", "help");
+```
+
 ### Sabitler ve Türler
 
 #### `samp_constants.js`
+
 Bu dosya SA-MP'nin tüm standart sabitlerini ve tanımlarını (MAX_PLAYERS, WEAPON_DEAGLE vb. gibi) içerir. Global olarak yüklenir, bu nedenle bunları bildirmenize gerek kalmadan doğrudan kodunuzda kullanabilirsiniz.
 
 #### `types/` Dizini
+
 Bu dizin, tüm Kainure API'si için tür tanımlama dosyalarını (`.d.ts`) saklar. TypeScript kullanıyorsanız, bu dosyalar kod düzenleyicinizde otomatik tamamlama, tür denetimi ve çok daha zengin ve güvenli bir geliştirme deneyimi sağlayacaktır.
 
 ## Resmi Oyun Modu
