@@ -4,3 +4,6 @@
 [submodule "deps/samp-sdk"]
 	path = deps/samp-sdk
 	url = https://github.com/aldergrounds/samp-sdk.git
+[submodule "deps/lua"]
+	path = deps/lua
+	url = https://github.com/lua/lua
